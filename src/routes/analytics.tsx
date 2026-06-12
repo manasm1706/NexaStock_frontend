@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/app/DashboardLayout";
-import { motion } from "motion/react";
+import { AnalyticsBars } from "@/components/analytics/AnalyticsBars";
+import { GlassCard, MetricCard } from "@/components/ui/card/GlassCard";
+import { SectionTitle } from "@/components/ui/typography";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
+import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/analytics")({
   head: () => ({ meta: [{ title: "Analytics · NexaStock" }] }),
@@ -19,53 +24,43 @@ const regions = [
   { name: "West", v: 42 }, { name: "South", v: 26 }, { name: "North", v: 20 }, { name: "East", v: 12 },
 ];
 
-function Bars({ data, color = "from-primary to-accent" }: { data: { name: string; v: number }[]; color?: string }) {
-  const max = Math.max(...data.map((d) => d.v));
-  return (
-    <div className="space-y-3">
-      {data.map((d) => (
-        <div key={d.name}>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">{d.name}</span>
-            <span className="text-foreground">{d.v}%</span>
-          </div>
-          <div className="mt-1.5 h-2 rounded-full bg-white/5 overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${(d.v / max) * 100}%` }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className={`h-full rounded-full bg-gradient-to-r ${color}`}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function AnalyticsPage() {
+  const { data: dashboard, isLoading } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: () => api.getAnalyticsDashboard()
+  });
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Analytics" subtitle="Gathering analytics ledger...">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Calculate dynamic display values from backend dashboard data
+  const liveRevenue = dashboard?.revenue !== undefined ? `$${Number(dashboard.revenue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "$4.82M";
+
   return (
     <DashboardLayout title="Analytics" subtitle="Network-wide performance · Last 30 days">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { l: "Revenue", v: "$4.82M", d: "+18.2%" },
+          { l: "Revenue", v: liveRevenue, d: "+18.2%" },
           { l: "Units sold", v: "284,120", d: "+12.6%" },
           { l: "Avg basket", v: "$26.40", d: "+3.1%" },
           { l: "Stockout rate", v: "1.8%", d: "-0.6%" },
         ].map((k) => (
-          <div key={k.l} className="glass rounded-2xl p-5 shadow-card">
-            <div className="text-xs text-muted-foreground">{k.l}</div>
-            <div className="mt-2 font-display text-3xl font-semibold tracking-tight">{k.v}</div>
-            <div className="text-xs text-success mt-2">{k.d}</div>
-          </div>
+          <MetricCard key={k.l} label={k.l} value={k.v} delta={k.d} />
         ))}
       </div>
 
-      <div className="glass rounded-2xl p-6 shadow-card">
+      <GlassCard className="p-6">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-xs text-muted-foreground">Revenue trend</div>
-            <div className="font-display text-lg">Last 12 weeks</div>
+            <SectionTitle>Last 12 weeks</SectionTitle>
           </div>
         </div>
         <svg viewBox="0 0 800 220" className="w-full h-56 mt-4">
@@ -84,19 +79,19 @@ function AnalyticsPage() {
             <circle key={i} cx={i * 72 + 24} cy={170 - i * 11 + (i % 2 === 0 ? 8 : -4)} r="3" fill="oklch(0.82 0.16 258)" />
           ))}
         </svg>
-      </div>
+      </GlassCard>
 
       <div className="grid lg:grid-cols-2 gap-4">
-        <div className="glass rounded-2xl p-6 shadow-card">
-          <div className="font-display text-lg">Revenue by category</div>
+        <GlassCard className="p-6">
+          <SectionTitle>Revenue by category</SectionTitle>
           <div className="text-xs text-muted-foreground mb-4">% of total</div>
-          <Bars data={categories} />
-        </div>
-        <div className="glass rounded-2xl p-6 shadow-card">
-          <div className="font-display text-lg">Revenue by region</div>
+          <AnalyticsBars data={categories} />
+        </GlassCard>
+        <GlassCard className="p-6">
+          <SectionTitle>Revenue by region</SectionTitle>
           <div className="text-xs text-muted-foreground mb-4">% of total</div>
-          <Bars data={regions} color="from-accent to-primary" />
-        </div>
+          <AnalyticsBars data={regions} color="from-accent to-primary" />
+        </GlassCard>
       </div>
     </DashboardLayout>
   );

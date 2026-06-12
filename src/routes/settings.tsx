@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/app/DashboardLayout";
-import { Building2, Bell, Shield, KeyRound, CreditCard, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { GlassCard } from "@/components/ui/card/GlassCard";
+import { SectionTitle } from "@/components/ui/typography";
+import { Building2, Bell, Shield, KeyRound, CreditCard, Users, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings · NexaStock" }] }),
@@ -16,14 +21,33 @@ const sections = [
   { icon: Shield, label: "Security" },
 ];
 
-const team = [
-  { name: "Jane Doe", role: "Owner", email: "jane@nexastock.io" },
-  { name: "Aarav Mehta", role: "Warehouse Manager", email: "aarav@nexastock.io" },
-  { name: "Priya Iyer", role: "Store Manager · Pune", email: "priya@nexastock.io" },
-  { name: "Rohit Khanna", role: "Analyst", email: "rohit@nexastock.io" },
-];
-
 function SettingsPage() {
+  // Fetch tenant info
+  const { data: tenantSummary, isLoading: loadingTenant } = useQuery({
+    queryKey: ["tenant-summary"],
+    queryFn: () => api.getTenantSummary()
+  });
+
+  // Fetch team members list
+  const { data: teamData = [], isLoading: loadingTeam } = useQuery({
+    queryKey: ["team-users"],
+    queryFn: () => api.getUsers()
+  });
+
+  const isLoading = loadingTenant || loadingTeam;
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Settings" subtitle="Loading settings...">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const tenant = tenantSummary?.tenant || {};
+
   return (
     <DashboardLayout title="Settings" subtitle="Configure your NexaStock workspace">
       <div className="grid lg:grid-cols-[220px_1fr] gap-6">
@@ -32,7 +56,7 @@ function SettingsPage() {
             <button
               key={s.label}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
-                i === 0 ? "bg-white/[0.05] text-foreground glow-ring" : "text-muted-foreground hover:text-foreground hover:bg-white/[0.03]"
+                i === 0 ? "bg-white/5 text-foreground glow-ring" : "text-muted-foreground hover:text-foreground hover:bg-white/3"
               }`}
             >
               <s.icon className="w-4 h-4" /> {s.label}
@@ -41,55 +65,53 @@ function SettingsPage() {
         </nav>
 
         <div className="space-y-6">
-          <div className="glass rounded-2xl p-6 shadow-card">
-            <div className="font-display text-lg">Organization</div>
+          <GlassCard className="p-6">
+            <SectionTitle>Organization</SectionTitle>
             <div className="text-xs text-muted-foreground">Branding and identity for your tenant</div>
             <div className="mt-5 grid sm:grid-cols-2 gap-4">
               {[
-                { l: "Legal name", v: "NexaStock Retail Pvt. Ltd." },
-                { l: "Display name", v: "NexaStock" },
-                { l: "Industry", v: "Pharma · Retail" },
-                { l: "Timezone", v: "Asia/Kolkata (UTC+5:30)" },
-                { l: "Currency", v: "INR (₹)" },
+                { l: "Legal name", v: tenant.legalName || "NexaStock Retail Pvt. Ltd." },
+                { l: "Display name", v: tenant.name || "NexaStock" },
+                { l: "Industry", v: tenant.industry || "Pharma · Retail" },
+                { l: "Timezone", v: tenant.timezone || "Asia/Kolkata (UTC+5:30)" },
+                { l: "Currency", v: tenant.primaryCurrency || "INR (₹)" },
                 { l: "Fiscal year", v: "Apr — Mar" },
               ].map((f) => (
                 <div key={f.l}>
                   <div className="text-xs text-muted-foreground">{f.l}</div>
-                  <div className="mt-1 h-10 rounded-xl border border-white/10 bg-white/[0.02] px-3 flex items-center text-sm">
+                  <div className="mt-1 h-10 rounded-xl border border-white/10 bg-white/2 px-3 flex items-center text-sm text-foreground">
                     {f.v}
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </GlassCard>
 
-          <div className="glass rounded-2xl p-6 shadow-card">
-            <div className="flex items-center justify-between">
+          <GlassCard className="p-6">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="font-display text-lg">Team & roles</div>
+                <SectionTitle>Team & roles</SectionTitle>
                 <div className="text-xs text-muted-foreground">Role-based access control</div>
               </div>
-              <button className="h-9 px-4 rounded-xl text-sm bg-gradient-to-b from-primary to-[oklch(0.52_0.22_268)] text-primary-foreground shadow-glow-sm">
-                Invite member
-              </button>
+              <Button variant="premiumGradient" size="md" className="h-9 px-4">Invite member</Button>
             </div>
             <div className="mt-4 divide-y divide-white/5">
-              {team.map((m) => (
-                <div key={m.email} className="flex items-center gap-3 py-3">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-semibold">
-                    {m.name.split(" ").map((p) => p[0]).join("")}
+              {teamData.map((m: any) => (
+                <div key={m.id} className="flex items-center gap-3 py-3 text-foreground">
+                  <div className="w-9 h-9 rounded-xl bg-linear-to-br from-primary to-accent flex items-center justify-center text-xs font-semibold text-primary-foreground">
+                    {m.fullName.split(" ").map((p: string) => p[0]).join("")}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{m.name}</div>
+                    <div className="text-sm font-medium truncate">{m.fullName}</div>
                     <div className="text-xs text-muted-foreground truncate">{m.email}</div>
                   </div>
                   <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded-md border border-white/10 text-muted-foreground">
-                    {m.role}
+                    {m.roleLabel || m.role}
                   </span>
                 </div>
               ))}
             </div>
-          </div>
+          </GlassCard>
         </div>
       </div>
     </DashboardLayout>

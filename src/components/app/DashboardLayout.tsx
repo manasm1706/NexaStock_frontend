@@ -1,5 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { LogoMark, Logo } from "@/components/brand/Logo";
+import { Button } from "@/components/ui/button";
+import { Caption } from "@/components/ui/typography";
 import {
   LayoutDashboard, Boxes, Brain, Store, BarChart3, Settings,
   ScanLine, Sparkles, Search, Bell,
@@ -28,7 +30,7 @@ export function DashboardLayout({
           <LogoMark size={28} />
           <span className="font-semibold tracking-tight">NexaStock</span>
         </Link>
-        <div className="mt-6 px-2 text-[10px] uppercase tracking-widest text-muted-foreground">Workspace</div>
+        <div className="mt-6 px-2"><Caption>Workspace</Caption></div>
         <nav className="mt-3 space-y-1">
           {nav.map((item) => {
             const active = pathname === item.to;
@@ -53,10 +55,10 @@ export function DashboardLayout({
             <Sparkles className="w-3.5 h-3.5" /> NexaStock AI
           </div>
           <div className="text-xs text-muted-foreground mt-1.5">Ask anything about your operations.</div>
-          <Link to="/ai">
-            <button className="w-full mt-3 text-xs h-9 rounded-lg bg-gradient-to-b from-primary to-[oklch(0.52_0.22_268)] text-primary-foreground shadow-glow-sm">
+          <Link to="/ai" className="block mt-3">
+            <Button variant="premiumGradient" size="md" className="w-full text-xs">
               Open AI
-            </button>
+            </Button>
           </Link>
         </div>
       </aside>

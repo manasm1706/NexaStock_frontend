@@ -1,65 +1,165 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LogoMark } from "@/components/brand/Logo";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Search, Plus, Minus, Trash2, ScanLine, CreditCard, Wallet, Smartphone, Sparkles } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ScanLine, CreditCard, Wallet, Smartphone, Sparkles, Loader2, Store as StoreIcon } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/pos")({
   head: () => ({ meta: [{ title: "POS · NexaStock" }] }),
   component: POSPage,
 });
 
-const catalog = [
-  { sku: "ATR-020", name: "Atorva-20", cat: "Cardiac", price: 142 },
-  { sku: "PNT-040", name: "Pantop-40", cat: "Gastro", price: 88 },
-  { sku: "GLM-002", name: "Glimer-2", cat: "Diabetes", price: 64 },
-  { sku: "TLM-040", name: "Telma-40", cat: "Cardiac", price: 110 },
-  { sku: "CRC-001", name: "Crocin Adv.", cat: "OTC", price: 28 },
-  { sku: "AZE-500", name: "Azee-500", cat: "Antibiotic", price: 96 },
-  { sku: "DLX-30", name: "Duloxe-30", cat: "Neuro", price: 175 },
-  { sku: "VIT-D3", name: "Vitamin D3", cat: "OTC", price: 42 },
-  { sku: "PRC-650", name: "Paracetamol-650", cat: "OTC", price: 18 },
-  { sku: "ORS-200", name: "ORS Pro", cat: "OTC", price: 22 },
-  { sku: "MTF-500", name: "Metformin-500", cat: "Diabetes", price: 22 },
-  { sku: "RBZ-20", name: "Rabez-20", cat: "Gastro", price: 76 },
-];
-
-type Line = { sku: string; name: string; price: number; qty: number };
+type Line = { id: string; sku: string; name: string; price: number; qty: number; taxRate: number };
 
 function POSPage() {
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<string>("All");
-  const [cart, setCart] = useState<Line[]>([
-    { sku: "ATR-020", name: "Atorva-20", price: 142, qty: 1 },
-    { sku: "CRC-001", name: "Crocin Adv.", price: 28, qty: 2 },
-  ]);
+  const [cart, setCart] = useState<Line[]>([]);
 
-  const cats = ["All", ...Array.from(new Set(catalog.map((c) => c.cat)))];
-  const filtered = useMemo(
-    () =>
-      catalog.filter(
-        (p) =>
-          (cat === "All" || p.cat === cat) &&
-          (query === "" || p.name.toLowerCase().includes(query.toLowerCase()) || p.sku.includes(query.toUpperCase())),
-      ),
-    [query, cat],
-  );
+  // Customer & Payment States
+  const [custName, setCustName] = useState("");
+  const [custPhone, setCustPhone] = useState("");
+  const [paymentMode, setPaymentMode] = useState<"card" | "upi" | "cash">("cash");
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [selectedLocId, setSelectedLocId] = useState<string>("");
+
+  // Fetch products, locations, and AI recommendations
+  const { data: productsData = [], isLoading: loadingProducts } = useQuery({
+    queryKey: ["products"],
+    queryFn: () => api.getProducts()
+  });
+
+  const { data: locationsData = [], isLoading: loadingLocations } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => api.getLocations()
+  });
+
+  const { data: aiInsights } = useQuery({
+    queryKey: ["ai-insights"],
+    queryFn: () => api.getAIInsights()
+  });
+
+  const stores = useMemo(() => {
+    return locationsData.filter((loc: any) => loc.type === "store");
+  }, [locationsData]);
+
+  // Set default store location
+  useEffect(() => {
+    if (stores.length > 0 && !selectedLocId) {
+      setSelectedLocId(stores[0].id);
+    }
+  }, [stores, selectedLocId]);
+
+  const activeLocation = useMemo(() => {
+    return locationsData.find((loc: any) => loc.id === selectedLocId) || stores[0];
+  }, [locationsData, selectedLocId, stores]);
+
+  const catalog = useMemo(() => {
+    return productsData.map((prod: any) => ({
+      id: prod.id,
+      sku: prod.sku,
+      name: prod.name,
+      cat: prod.category,
+      price: prod.sellingPrice || 100,
+      taxRate: prod.taxRate || 12
+    }));
+  }, [productsData]);
+
+  const cats = useMemo(() => {
+    return ["All", ...Array.from(new Set(catalog.map((c) => c.cat)))];
+  }, [catalog]);
+
+  const filtered = useMemo(() => {
+    return catalog.filter(
+      (p) =>
+        (cat === "All" || p.cat === cat) &&
+        (query === "" || p.name.toLowerCase().includes(query.toLowerCase()) || p.sku.toLowerCase().includes(query.toLowerCase())),
+    );
+  }, [query, cat, catalog]);
 
   const add = (p: (typeof catalog)[number]) =>
     setCart((c) => {
       const existing = c.find((l) => l.sku === p.sku);
       return existing
         ? c.map((l) => (l.sku === p.sku ? { ...l, qty: l.qty + 1 } : l))
-        : [...c, { sku: p.sku, name: p.name, price: p.price, qty: 1 }];
+        : [...c, { id: p.id, sku: p.sku, name: p.name, price: p.price, qty: 1, taxRate: p.taxRate }];
     });
+
   const inc = (sku: string) => setCart((c) => c.map((l) => (l.sku === sku ? { ...l, qty: l.qty + 1 } : l)));
   const dec = (sku: string) =>
     setCart((c) => c.flatMap((l) => (l.sku === sku ? (l.qty > 1 ? [{ ...l, qty: l.qty - 1 }] : []) : [l])));
   const remove = (sku: string) => setCart((c) => c.filter((l) => l.sku !== sku));
 
   const subtotal = cart.reduce((s, l) => s + l.price * l.qty, 0);
-  const tax = +(subtotal * 0.12).toFixed(2);
+  const tax = +(cart.reduce((t, l) => t + (l.price * l.qty * (l.taxRate / 100)), 0)).toFixed(2);
   const total = +(subtotal + tax).toFixed(2);
+
+  // Suggested Upsell based on AI Insights
+  const upsellProduct = useMemo(() => {
+    const defaultProduct = catalog.find(p => p.sku === "MED-PARA-500") || catalog[0];
+    if (aiInsights?.recommendations?.length > 0) {
+      // Find a catalog product mentioned in recommendations
+      for (const rec of aiInsights.recommendations) {
+        const match = catalog.find(p => rec.toLowerCase().includes(p.name.toLowerCase()) || rec.toLowerCase().includes(p.sku.toLowerCase()));
+        if (match) return match;
+      }
+    }
+    return defaultProduct;
+  }, [aiInsights, catalog]);
+
+  const handleCheckout = async () => {
+    if (cart.length === 0) {
+      toast.error("Cart is empty");
+      return;
+    }
+    if (!activeLocation) {
+      toast.error("Please select a store counter first");
+      return;
+    }
+
+    setIsCheckingOut(true);
+    try {
+      await api.createPOSInvoice({
+        locationId: activeLocation.id,
+        paymentMode,
+        customerName: custName || undefined,
+        customerPhone: custPhone || undefined,
+        lines: cart.map((l) => ({
+          productId: l.id,
+          productName: l.name,
+          quantity: l.qty,
+          unitPrice: l.price,
+          taxRate: l.taxRate,
+          discount: 0
+        }))
+      });
+
+      toast.success("Transaction completed successfully!");
+      setCart([]);
+      setCustName("");
+      setCustPhone("");
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-balances"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit checkout");
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
+  const isLoading = loadingProducts || loadingLocations;
+
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col">
@@ -69,13 +169,26 @@ function POSPage() {
           <LogoMark size={26} />
           <span className="font-semibold tracking-tight">NexaStock <span className="text-muted-foreground font-normal">POS</span></span>
         </Link>
-        <span className="ml-2 text-[10px] uppercase tracking-widest px-2 py-1 rounded-md border border-white/10 text-muted-foreground">
-          Bandra Flagship · Counter 02
-        </span>
-        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="w-2 h-2 rounded-full bg-success animate-pulse-glow" /> Online · Synced
+        
+        <div className="flex items-center gap-2">
+          <StoreIcon className="w-4 h-4 text-muted-foreground" />
+          <select 
+            className="bg-transparent text-xs font-semibold text-foreground outline-none border border-white/10 rounded px-2 py-1 max-w-[200px]"
+            value={selectedLocId} 
+            onChange={(e) => setSelectedLocId(e.target.value)}
+          >
+            {stores.map((s: any) => (
+              <option key={s.id} value={s.id} className="bg-background text-foreground">
+                {s.name} ({s.code})
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-semibold">PR</div>
+
+        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="w-2 h-2 rounded-full bg-success animate-pulse-glow" /> Online · Connected
+        </div>
+        <div className="w-9 h-9 rounded-xl bg-linear-to-br from-primary to-accent flex items-center justify-center text-xs font-semibold">PR</div>
       </header>
 
       <div className="flex-1 min-h-0 grid lg:grid-cols-[1fr_420px] gap-0">
@@ -88,7 +201,7 @@ function POSPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Scan barcode or search SKU / product…"
-              className="bg-transparent outline-none text-sm flex-1 placeholder:text-muted-foreground"
+              className="bg-transparent outline-none text-sm flex-1 placeholder:text-muted-foreground text-foreground"
             />
             <Search className="w-4 h-4 text-muted-foreground" />
           </div>
@@ -120,9 +233,9 @@ function POSPage() {
                   <Plus className="w-3.5 h-3.5 text-primary" />
                 </div>
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{p.cat}</div>
-                <div className="mt-1.5 font-medium leading-snug pr-8">{p.name}</div>
+                <div className="mt-1.5 font-medium leading-snug pr-8 text-foreground">{p.name}</div>
                 <div className="text-xs text-muted-foreground mt-0.5">{p.sku}</div>
-                <div className="mt-4 font-display text-xl">${p.price}</div>
+                <div className="mt-4 font-display text-xl text-foreground">${p.price}</div>
               </motion.button>
             ))}
           </div>
@@ -131,8 +244,24 @@ function POSPage() {
         {/* Cart */}
         <aside className="border-l border-white/5 bg-[oklch(0.14_0.012_260)]/60 backdrop-blur-xl flex flex-col">
           <div className="px-5 py-4 border-b border-white/5">
-            <div className="font-display text-lg">Current order</div>
-            <div className="text-xs text-muted-foreground">#NX-{Math.floor(Math.random() * 90000) + 10000} · {new Date().toLocaleTimeString()}</div>
+            <div className="font-display text-lg text-foreground">Current order</div>
+            <div className="text-xs text-muted-foreground">Location: {activeLocation?.name || "None"}</div>
+          </div>
+
+          {/* Customer info fields */}
+          <div className="px-5 py-2 border-b border-white/5 grid grid-cols-2 gap-2">
+            <input 
+              value={custName}
+              onChange={(e) => setCustName(e.target.value)}
+              placeholder="Cust Name (Opt)" 
+              className="bg-white/3 border border-white/10 rounded-lg text-xs p-2 outline-none text-foreground placeholder:text-muted-foreground focus:border-primary/50"
+            />
+            <input 
+              value={custPhone}
+              onChange={(e) => setCustPhone(e.target.value)}
+              placeholder="Cust Phone (Opt)" 
+              className="bg-white/3 border border-white/10 rounded-lg text-xs p-2 outline-none text-foreground placeholder:text-muted-foreground focus:border-primary/50"
+            />
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
@@ -147,23 +276,23 @@ function POSPage() {
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3 flex items-center gap-3"
+                  className="rounded-xl border border-white/10 bg-white/3 p-3 flex items-center gap-3 text-foreground"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{l.name}</div>
-                    <div className="text-xs text-muted-foreground">${l.price} × {l.qty}</div>
+                    <div className="text-xs text-muted-foreground">${l.price} × {l.qty} (Tax {l.taxRate}%)</div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => dec(l.sku)} className="w-7 h-7 rounded-lg border border-white/10 hover:bg-white/5 flex items-center justify-center">
+                    <button onClick={() => dec(l.sku)} className="w-7 h-7 rounded-lg border border-white/10 hover:bg-white/5 flex items-center justify-center cursor-pointer">
                       <Minus className="w-3 h-3" />
                     </button>
                     <span className="w-6 text-center text-sm">{l.qty}</span>
-                    <button onClick={() => inc(l.sku)} className="w-7 h-7 rounded-lg border border-white/10 hover:bg-white/5 flex items-center justify-center">
+                    <button onClick={() => inc(l.sku)} className="w-7 h-7 rounded-lg border border-white/10 hover:bg-white/5 flex items-center justify-center cursor-pointer">
                       <Plus className="w-3 h-3" />
                     </button>
                   </div>
                   <div className="w-16 text-right text-sm font-medium">${(l.price * l.qty).toFixed(0)}</div>
-                  <button onClick={() => remove(l.sku)} className="text-muted-foreground hover:text-destructive">
+                  <button onClick={() => remove(l.sku)} className="text-muted-foreground hover:text-destructive cursor-pointer">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </motion.div>
@@ -172,35 +301,58 @@ function POSPage() {
           </div>
 
           <div className="px-5 py-3 border-t border-white/5 space-y-1.5 text-sm">
-            <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-            <div className="flex justify-between text-muted-foreground"><span>GST (12%)</span><span>${tax.toFixed(2)}</span></div>
-            <div className="flex justify-between font-display text-xl pt-1.5"><span>Total</span><span>${total.toFixed(2)}</span></div>
+            <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="text-foreground">${subtotal.toFixed(2)}</span></div>
+            <div className="flex justify-between text-muted-foreground"><span>Estimated Taxes</span><span className="text-foreground">${tax.toFixed(2)}</span></div>
+            <div className="flex justify-between font-display text-xl pt-1.5 text-foreground"><span>Total</span><span>${total.toFixed(2)}</span></div>
           </div>
 
-          <div className="px-5 pb-3">
-            <div className="rounded-xl border border-primary/30 bg-primary/[0.06] p-3 flex items-start gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-primary mt-0.5" />
-              <div className="text-xs">
-                <div className="text-foreground">AI suggests adding <span className="text-primary">Vitamin D3</span></div>
-                <div className="text-muted-foreground">Frequently bought with Atorva-20</div>
-              </div>
+          {upsellProduct && (
+            <div className="px-5 pb-3">
+              <button 
+                onClick={() => add(upsellProduct)}
+                className="w-full text-left rounded-xl border border-primary/30 bg-primary/5 p-3 flex items-start gap-2 hover:bg-primary/10 transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-primary mt-0.5" />
+                <div className="text-xs">
+                  <div className="text-foreground">AI suggestion: Add <span className="text-primary font-medium">{upsellProduct.name}</span></div>
+                  <div className="text-muted-foreground">Frequently bought matching items. Tap to add.</div>
+                </div>
+              </button>
             </div>
-          </div>
+          )}
 
           <div className="px-5 pb-5">
             <div className="grid grid-cols-3 gap-2 mb-2">
               {[
-                { i: CreditCard, l: "Card" },
-                { i: Smartphone, l: "UPI" },
-                { i: Wallet, l: "Cash" },
+                { type: "card" as const, i: CreditCard, l: "Card" },
+                { type: "upi" as const, i: Smartphone, l: "UPI" },
+                { type: "cash" as const, i: Wallet, l: "Cash" },
               ].map((p) => (
-                <button key={p.l} className="h-12 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-xs inline-flex flex-col items-center justify-center gap-1">
+                <button 
+                  key={p.l} 
+                  onClick={() => setPaymentMode(p.type)}
+                  className={`h-12 rounded-xl border text-xs inline-flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
+                    paymentMode === p.type ? "border-primary bg-primary/10 text-foreground" : "border-white/10 bg-white/3 hover:bg-white/6 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
                   <p.i className="w-4 h-4" /> {p.l}
                 </button>
               ))}
             </div>
-            <button className="w-full h-12 rounded-xl bg-gradient-to-b from-primary to-[oklch(0.52_0.22_268)] text-primary-foreground shadow-glow font-medium">
-              Charge ${total.toFixed(2)}
+            <button 
+              disabled={isCheckingOut || cart.length === 0}
+              onClick={handleCheckout}
+              className="w-full h-12 rounded-xl bg-linear-to-b from-primary to-[oklch(0.52_0.22_268)] text-primary-foreground shadow-glow font-medium flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCheckingOut ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                </>
+              ) : (
+                <>
+                  Charge ${total.toFixed(2)}
+                </>
+              )}
             </button>
           </div>
         </aside>

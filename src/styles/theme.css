@@ -1,0 +1,11 @@
+@layer base {
+  :root {
+    color-scheme: dark;
+    --app-shell-bg: linear-gradient(180deg, rgba(17, 24, 39, 0.98) 0%, rgba(12, 16, 27, 0.98) 100%);
+  }
+
+  body {
+    min-height: 100vh;
+    background-image: var(--app-shell-bg);
+  }
+}

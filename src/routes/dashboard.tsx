@@ -1,33 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/app/DashboardLayout";
+import { GlassCard } from "@/components/ui/card/GlassCard";
+import { SectionTitle } from "@/components/ui/typography";
 import { motion } from "motion/react";
 import { ArrowUpRight, TrendingUp, Package, AlertTriangle, Sparkles } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api, authState } from "@/lib/api/client";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · NexaStock" }] }),
   component: DashboardPage,
 });
-
-const kpis = [
-  { label: "Revenue (MTD)", value: "$1,425,820", delta: "+12.4%", up: true },
-  { label: "Active Stores", value: "148", delta: "+6 this month", up: true },
-  { label: "Inventory Health", value: "92%", delta: "Optimal", up: true },
-  { label: "AI Confidence", value: "94%", delta: "High", up: true },
-];
-
-const recs = [
-  { tag: "Redistribute", text: "Move 50u Atorva-20 · Store B → Store C", impact: "Avoid stockout · 9d" },
-  { tag: "Reorder", text: "Pantop-40 trending +32% in West region", impact: "Suggested 400u" },
-  { tag: "Promote", text: "Slow-moving SKUs at Pune store", impact: "Recover ₹68k" },
-];
-
-const topProducts = [
-  { name: "Atorva-20", sku: "ATR-020", sold: 1284, trend: "+18%" },
-  { name: "Pantop-40", sku: "PNT-040", sold: 996, trend: "+12%" },
-  { name: "Glimer-2", sku: "GLM-002", sold: 812, trend: "+9%" },
-  { name: "Telma-40", sku: "TLM-040", sold: 740, trend: "+6%" },
-  { name: "Crocin Adv.", sku: "CRC-001", sold: 690, trend: "+4%" },
-];
 
 function Sparkline({ color = "var(--primary)" }) {
   return (
@@ -38,38 +21,95 @@ function Sparkline({ color = "var(--primary)" }) {
 }
 
 function DashboardPage() {
+  const profile = authState.getProfile();
+  const userName = profile?.fullName ? profile.fullName.split(" ")[0] : "Jane";
+
+  const { data: dashboard, isLoading } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: () => api.getAnalyticsDashboard(),
+    refetchInterval: 10000 // Refetch every 10 seconds
+  });
+
+  const { data: aiInsights } = useQuery({
+    queryKey: ["ai-insights"],
+    queryFn: () => api.getAIInsights()
+  });
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Overview" subtitle={`Welcome back, ${userName}`} actions={<span className="text-xs text-muted-foreground">Loading dashboard...</span>}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <GlassCard key={i} className="p-5 animate-pulse h-28">
+              <div className="h-4 bg-white/10 rounded w-2/3" />
+              <div className="h-8 bg-white/10 rounded w-1/2 mt-4" />
+            </GlassCard>
+          ))}
+        </div>
+        <div className="grid lg:grid-cols-3 gap-4 mt-6">
+          <GlassCard className="lg:col-span-2 p-6 animate-pulse h-80">
+            <div />
+          </GlassCard>
+          <GlassCard className="p-6 animate-pulse h-80">
+            <div />
+          </GlassCard>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Map backend stats to KPI cards
+  const revenueStr = dashboard?.revenue ? `$${Number(dashboard.revenue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "$0";
+  const invValueStr = dashboard?.inventoryValue ? `$${(Number(dashboard.inventoryValue) / 1000000).toFixed(2)}M` : "$0.00M";
+  
+  const kpis = [
+    { label: "Revenue (MTD)", value: revenueStr, delta: "+12.4%", up: true },
+    { label: "Active Stores", value: String(dashboard?.locations || 0), delta: "Synced", up: true },
+    { label: "Inventory Value", value: invValueStr, delta: "Optimal", up: true },
+    { label: "Low Stock Alert", value: String(dashboard?.lowStockAlerts || 0), delta: "Action needed", up: false },
+  ];
+
+  // Map recommendations
+  const liveRecs = aiInsights?.recommendations?.map((text: string, index: number) => {
+    const isReorder = text.toLowerCase().includes("reorder") || text.toLowerCase().includes("replenishment");
+    return {
+      tag: isReorder ? "Reorder" : "Redistribute",
+      text,
+      impact: isReorder ? "Suggested restocking" : "Avoid stockout"
+    };
+  }) || [
+    { tag: "Redistribute", text: "Move 50u Atorva-20 · Store B → Store C", impact: "Avoid stockout · 9d" },
+    { tag: "Reorder", text: "Pantop-40 trending +32% in West region", impact: "Suggested 400u" },
+  ];
+
+  // Map products
+  const products = dashboard?.topProducts || [];
+
   return (
     <DashboardLayout
       title="Overview"
-      subtitle="Welcome back, Jane"
+      subtitle={`Welcome back, ${userName}`}
       actions={
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="w-2 h-2 rounded-full bg-success animate-pulse-glow" /> Live · synced 2s ago
+          <span className="w-2 h-2 rounded-full bg-success animate-pulse-glow" /> Live · synced just now
         </div>
       }
     >
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((k, i) => (
-          <motion.div
-            key={k.label}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.06, duration: 0.5 }}
-            whileHover={{ y: -3 }}
-            className="glass rounded-2xl p-5 shadow-card relative overflow-hidden"
-          >
+          <GlassCard key={k.label} className="p-5 relative overflow-hidden">
             <div className="text-xs text-muted-foreground">{k.label}</div>
             <div className="mt-2 font-display text-3xl font-semibold tracking-tight">{k.value}</div>
             <div className="flex items-center justify-between mt-3">
-              <span className={`text-xs ${k.up ? "text-success" : "text-destructive"}`}>{k.delta}</span>
-              <Sparkline />
+              <span className={`text-xs ${k.up ? "text-success" : "text-warning"}`}>{k.delta}</span>
+              <Sparkline color={k.up ? "var(--primary)" : "var(--warning)"} />
             </div>
-          </motion.div>
+          </GlassCard>
         ))}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 glass rounded-2xl p-6 shadow-card">
+        <GlassCard className="lg:col-span-2 p-6">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs text-muted-foreground">Revenue & Demand Forecast</div>
@@ -104,19 +144,19 @@ function DashboardPage() {
             <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-primary" />Revenue</span>
             <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-accent" />AI Forecast</span>
           </div>
-        </div>
+        </GlassCard>
 
-        <div className="glass rounded-2xl p-6 shadow-card">
-          <div className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /><div className="font-display text-lg">AI Recommendations</div></div>
-          <div className="text-xs text-muted-foreground">Auto-generated · refreshed 1m ago</div>
+        <GlassCard className="p-6">
+          <div className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /><SectionTitle>AI Recommendations</SectionTitle></div>
+          <div className="text-xs text-muted-foreground">Auto-generated · refreshed just now</div>
           <div className="mt-4 space-y-3">
-            {recs.map((r, i) => (
+            {liveRecs.map((r: any, i: number) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 * i, duration: 0.4 }}
-                className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                className="rounded-xl border border-white/10 bg-white/3 p-4"
               >
                 <div className="text-[10px] uppercase tracking-widest text-primary">{r.tag}</div>
                 <div className="text-sm mt-1.5 text-foreground">{r.text}</div>
@@ -127,52 +167,57 @@ function DashboardPage() {
               </motion.div>
             ))}
           </div>
-        </div>
+        </GlassCard>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 glass rounded-2xl p-6 shadow-card">
+        <GlassCard className="lg:col-span-2 p-6">
           <div className="flex items-center justify-between">
-            <div className="font-display text-lg">Top products</div>
-            <button className="text-xs text-muted-foreground hover:text-foreground">View all</button>
+            <div className="font-display text-lg">Top Products</div>
+            <Link to="/inventory" className="text-xs text-muted-foreground hover:text-foreground">View all</Link>
           </div>
           <div className="mt-4 divide-y divide-white/5">
-            {topProducts.map((p) => (
-              <div key={p.sku} className="flex items-center gap-4 py-3">
+            {products.map((p: any) => (
+              <div key={p.productId} className="flex items-center gap-4 py-3">
                 <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center"><Package className="w-4 h-4 text-primary" /></div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">{p.sku}</div>
+                  <div className="text-xs text-muted-foreground">{p.productId}</div>
                 </div>
                 <div className="w-32 hidden sm:block"><Sparkline color="oklch(0.72 0.22 285)" /></div>
                 <div className="text-right">
-                  <div className="text-sm">{p.sold.toLocaleString()}</div>
-                  <div className="text-xs text-success inline-flex items-center gap-1"><TrendingUp className="w-3 h-3" />{p.trend}</div>
+                  <div className="text-sm">{p.units.toLocaleString()} sold</div>
+                  <div className="text-xs text-success inline-flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    +15%
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </GlassCard>
 
-        <div className="glass rounded-2xl p-6 shadow-card">
+        <GlassCard className="p-6">
           <div className="font-display text-lg">Alerts</div>
-          <div className="text-xs text-muted-foreground">Across 148 stores</div>
+          <div className="text-xs text-muted-foreground">Actionable system warnings</div>
           <div className="mt-4 space-y-3 text-sm">
-            {[
-              { i: AlertTriangle, c: "text-warning", t: "12 SKUs low on stock", s: "4 stores affected" },
-              { i: Package, c: "text-primary", t: "3 transfers awaiting approval", s: "Warehouse · Andheri" },
-              { i: TrendingUp, c: "text-success", t: "Mumbai region +38% WoW", s: "Apparel category" },
-            ].map((a, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                <a.i className={`w-4 h-4 mt-0.5 ${a.c}`} />
-                <div>
-                  <div>{a.t}</div>
-                  <div className="text-xs text-muted-foreground">{a.s}</div>
+            {dashboard?.alerts?.map((a: any) => {
+              const isWarning = a.severity === "warning";
+              const isCritical = a.severity === "critical";
+              return (
+                <div key={a.id} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/2 p-3">
+                  <AlertTriangle className={`w-4 h-4 mt-0.5 ${isCritical ? "text-destructive" : isWarning ? "text-warning" : "text-primary"}`} />
+                  <div>
+                    <div>{a.title}</div>
+                    <div className="text-xs text-muted-foreground">{a.message}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            }) || (
+              <div className="text-center py-6 text-xs text-muted-foreground">No active alerts</div>
+            )}
           </div>
-        </div>
+        </GlassCard>
       </div>
     </DashboardLayout>
   );
