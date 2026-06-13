@@ -26,11 +26,6 @@ export function Navbar() {
         </ul>
         <div className="ml-auto flex items-center gap-2">
           <Link to="/login"><Button variant="ghost" size="sm" className="text-foreground/80 hover:text-foreground">Sign in</Button></Link>
-          <Link to="/dashboard">
-            <Button size="sm" className="bg-gradient-to-b from-primary to-[oklch(0.55_0.22_268)] text-primary-foreground shadow-glow-sm hover:brightness-110">
-              Open Dashboard
-            </Button>
-          </Link>
         </div>
       </nav>
     </motion.header>
