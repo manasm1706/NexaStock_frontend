@@ -6,7 +6,11 @@ import {
   LayoutDashboard, Boxes, Brain, Store, BarChart3, Settings,
   ScanLine, Sparkles, Search, Bell,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { AnimatePresence } from "motion/react";
+import { authState } from "@/lib/api/client";
+import { ProfileSettingsModal } from "./ProfileSettingsModal";
+
 
 const nav = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Overview" },
@@ -22,6 +26,17 @@ export function DashboardLayout({
   title, subtitle, actions, children,
 }: { title: string; subtitle?: string; actions?: ReactNode; children: ReactNode }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const profile = authState.getProfile();
+  const userInitials = profile?.fullName
+    ? profile.fullName
+        .split(" ")
+        .map((p: string) => p[0])
+        .join("")
+        .toUpperCase()
+        .substring(0, 2)
+    : "JD";
 
   return (
     <div className="min-h-screen flex">
@@ -80,7 +95,12 @@ export function DashboardLayout({
                 <Bell className="w-4 h-4" />
                 <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-primary" />
               </button>
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-semibold">JD</div>
+              <button
+                onClick={() => setIsProfileOpen(true)}
+                className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-semibold hover:opacity-90 active:scale-95 transition-all duration-150 cursor-pointer shadow-glow-sm border border-white/10"
+              >
+                {userInitials}
+              </button>
             </div>
           </div>
         </header>
@@ -96,6 +116,12 @@ export function DashboardLayout({
           {children}
         </main>
       </div>
+
+      <AnimatePresence>
+        {isProfileOpen && (
+          <ProfileSettingsModal onClose={() => setIsProfileOpen(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

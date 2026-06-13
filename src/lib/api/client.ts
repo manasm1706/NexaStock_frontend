@@ -123,13 +123,17 @@ export const api = {
   },
 
   // Onboarding
-  async startOnboarding(organizationName: string, industry: string, plan: string): Promise<{ id: string }> {
-    const result = await apiRequest<{ id: string }>("POST", "/onboarding/start", {
-      organizationName,
-      industry,
-      plan
-    });
-    authState.setTenantId(result.id);
+  async startOnboarding(payload: any): Promise<any> {
+    const result = await apiRequest<any>("POST", "/onboarding/start", payload);
+    if (result.token) {
+      authState.setToken(result.token);
+    }
+    if (result.user) {
+      authState.setProfile(result.user);
+    }
+    if (result.tenant?.id) {
+      authState.setTenantId(result.tenant.id);
+    }
     return result;
   },
 

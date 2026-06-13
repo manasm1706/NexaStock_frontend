@@ -73,30 +73,47 @@ function OnboardingPage() {
   const handleLaunch = async () => {
     setIsLoading(true);
     try {
-      // 1. Start Onboarding & Create Tenant
-      const tenantRes = await api.startOnboarding(legalName, industry, "professional");
-      
-      // 2. Create Warehouse Location
-      await api.createLocation({
-        name: whName,
-        code: whCode,
-        type: "warehouse",
-        city: hq.split(",")[0]?.trim() || "Mumbai",
-        state: hq.split(",")[1]?.trim() || "Maharashtra",
-        country: "India"
-      });
+      const signupFullName = sessionStorage.getItem("nexastock_signup_fullName") || "Owner";
+      const signupEmail = sessionStorage.getItem("nexastock_signup_email") || "owner@acme.example";
+      const signupPassword = sessionStorage.getItem("nexastock_signup_password") || "password123";
 
-      // 3. Create all store locations
-      for (const store of stores) {
-        await api.createLocation({
+      const payload = {
+        organizationName: orgName,
+        legalName: legalName,
+        industry: industry,
+        plan: "professional",
+        hq: hq,
+        currency: currency,
+        timezone: timezone,
+        warehouse: {
+          name: whName,
+          code: whCode,
+          address: whAddress,
+          capacity: whCapacity,
+          email: whEmail,
+          phone: whPhone
+        },
+        stores: stores.map(store => ({
           name: store.name,
           code: store.code,
-          type: "store",
-          city: store.city,
-          state: store.city === "Bengaluru" ? "Karnataka" : store.city === "Delhi" ? "Delhi" : "Maharashtra",
-          country: "India"
-        });
-      }
+          city: store.city
+        })),
+        aiPreference: aiPreference,
+        adminUser: {
+          fullName: signupFullName,
+          email: signupEmail,
+          password: signupPassword
+        }
+      };
+
+      // Perform unified atomic onboarding
+      await api.startOnboarding(payload);
+
+      // Clean up session storage
+      sessionStorage.removeItem("nexastock_signup_fullName");
+      sessionStorage.removeItem("nexastock_signup_email");
+      sessionStorage.removeItem("nexastock_signup_company");
+      sessionStorage.removeItem("nexastock_signup_password");
 
       toast.success("Workspace successfully launched!");
       navigate({ to: "/dashboard" });
