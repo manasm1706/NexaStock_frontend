@@ -8,8 +8,10 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { AnimatePresence } from "motion/react";
-import { authState } from "@/lib/api/client";
+import { api, authState } from "@/lib/api/client";
 import { ProfileSettingsModal } from "./ProfileSettingsModal";
+import { getBusinessType } from "@/lib/constants";
+import { useQuery } from "@tanstack/react-query";
 
 
 const nav = [
@@ -28,19 +30,27 @@ export function DashboardLayout({
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
+  const { data: tenantData } = useQuery({
+    queryKey: ["tenant-summary"],
+    queryFn: () => api.getTenantSummary(),
+    staleTime: 60 * 60 * 1000, // 1 hour
+  });
+
+  const bizType = getBusinessType(tenantData?.tenant?.industry);
+
   const profile = authState.getProfile();
   const userInitials = profile?.fullName
     ? profile.fullName
-        .split(" ")
-        .map((p: string) => p[0])
-        .join("")
-        .toUpperCase()
-        .substring(0, 2)
+      .split(" ")
+      .map((p: string) => p[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2)
     : "JD";
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-white/5 bg-[oklch(0.14_0.012_260)]/60 backdrop-blur-xl p-4">
+    <div className={`min-h-screen flex transition-colors duration-500 bg-linear-to-br ${bizType.color}`}>
+      <aside className={`hidden md:flex flex-col w-60 shrink-0 border-r border-white/5 bg-black/20 backdrop-blur-xl p-4 ${bizType.border}`}>
         <Link to="/" className="flex items-center gap-2.5 px-2 py-2">
           <LogoMark size={28} />
           <span className="font-semibold tracking-tight">NexaStock</span>
@@ -53,11 +63,10 @@ export function DashboardLayout({
               <Link
                 key={item.to}
                 to={item.to}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
-                  active
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${active
                     ? "bg-white/[0.05] text-foreground glow-ring"
                     : "text-muted-foreground hover:text-foreground hover:bg-white/[0.03]"
-                }`}
+                  }`}
               >
                 <item.icon className="w-4 h-4" />
                 {item.label}

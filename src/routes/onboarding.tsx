@@ -15,8 +15,10 @@ const steps = [
   { key: "org", label: "Organization", icon: Building2 },
   { key: "warehouse", label: "Warehouse", icon: Warehouse },
   { key: "stores", label: "Stores", icon: Store },
-  { key: "ai", label: "AI preferences", icon: Sparkles },
+  { key: "business", label: "Business Type", icon: Sparkles },
 ];
+
+import { BUSINESS_TYPES } from "@/lib/constants";
 
 function OnboardingPage() {
   const [step, setStep] = useState(0);
@@ -24,33 +26,54 @@ function OnboardingPage() {
   const navigate = useNavigate();
 
   // State variables for wizard data
-  const [orgName, setOrgName] = useState("Acme");
-  const [legalName, setLegalName] = useState("Acme Retail Pvt. Ltd.");
-  const [industry, setIndustry] = useState("Pharma · Retail");
-  const [hq, setHq] = useState("Mumbai, India");
+  const [orgName, setOrgName] = useState("");
+  const [legalName, setLegalName] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [hq, setHq] = useState("");
   const [currency, setCurrency] = useState("INR");
   const [timezone, setTimezone] = useState("Asia/Kolkata");
 
-  const [whName, setWhName] = useState("Andheri Central");
-  const [whCode, setWhCode] = useState("WH-MUM-01");
-  const [whAddress, setWhAddress] = useState("MIDC, Andheri East, Mumbai");
-  const [whCapacity, setWhCapacity] = useState("120,000");
-  const [whEmail, setWhEmail] = useState("manager@yourco.com");
-  const [whPhone, setWhPhone] = useState("+91 98200 12345");
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [newWhName, setNewWhName] = useState("");
+  const [newWhCode, setNewWhCode] = useState("");
+  const [newWhAddress, setNewWhAddress] = useState("");
+  const [newWhCapacity, setNewWhCapacity] = useState("");
+  const [newWhEmail, setNewWhEmail] = useState("");
+  const [newWhPhone, setNewWhPhone] = useState("");
+  const [isAddingWarehouse, setIsAddingWarehouse] = useState(false);
 
-  const [stores, setStores] = useState([
-    { name: "Bandra Flagship", code: "ST-MUM-01", city: "Mumbai" },
-    { name: "Koramangala", code: "ST-BLR-01", city: "Bengaluru" },
-    { name: "Connaught Place", code: "ST-DEL-01", city: "Delhi" },
-  ]);
+  const [stores, setStores] = useState<any[]>([]);
 
   const [newStoreName, setNewStoreName] = useState("");
   const [newStoreCode, setNewStoreCode] = useState("");
   const [newStoreCity, setNewStoreCity] = useState("");
   const [isAddingStore, setIsAddingStore] = useState(false);
 
-  const [aiPreference, setAiPreference] = useState("Co-pilot");
+  const [businessType, setBusinessType] = useState("electronics");
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleAddWarehouse = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWhName || !newWhCode) {
+      toast.error("Name and Code are required for warehouse");
+      return;
+    }
+    setWarehouses([...warehouses, {
+      name: newWhName,
+      code: newWhCode,
+      address: newWhAddress,
+      capacity: newWhCapacity,
+      email: newWhEmail,
+      phone: newWhPhone
+    }]);
+    setNewWhName(""); setNewWhCode(""); setNewWhAddress(""); setNewWhCapacity(""); setNewWhEmail(""); setNewWhPhone("");
+    setIsAddingWarehouse(false);
+    toast.success("Warehouse added");
+  };
+
+  const handleRemoveWarehouse = (index: number) => {
+    setWarehouses(warehouses.filter((_, i) => i !== index));
+  };
 
   const handleAddStore = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +86,7 @@ function OnboardingPage() {
     setNewStoreCode("");
     setNewStoreCity("");
     setIsAddingStore(false);
-    toast.success("Store added to plan");
+    toast.success("Store added");
   };
 
   const handleRemoveStore = (index: number) => {
@@ -80,25 +103,18 @@ function OnboardingPage() {
       const payload = {
         organizationName: orgName,
         legalName: legalName,
-        industry: industry,
+        industry: businessType,
         plan: "professional",
         hq: hq,
         currency: currency,
         timezone: timezone,
-        warehouse: {
-          name: whName,
-          code: whCode,
-          address: whAddress,
-          capacity: whCapacity,
-          email: whEmail,
-          phone: whPhone
-        },
+        warehouses: warehouses,
         stores: stores.map(store => ({
           name: store.name,
           code: store.code,
           city: store.city
         })),
-        aiPreference: aiPreference,
+        businessType: businessType,
         adminUser: {
           fullName: signupFullName,
           email: signupEmail,
@@ -124,12 +140,14 @@ function OnboardingPage() {
     }
   };
 
+  const currentType = BUSINESS_TYPES.find(t => t.id === businessType) || BUSINESS_TYPES[0];
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="px-6 py-5 flex items-center gap-3">
+    <div className={`min-h-screen flex flex-col transition-colors duration-500 bg-linear-to-br ${currentType.color}`}>
+      <header className="px-6 py-5 flex items-center gap-3 backdrop-blur-md bg-black/5 border-b border-white/5">
         <Link to="/" className="flex items-center gap-2.5">
           <LogoMark size={28} />
-          <span className="font-semibold tracking-tight">NexaStock</span>
+          <span className="font-semibold tracking-tight">NexaStock <span className="text-xs font-normal text-muted-foreground ml-1">[{currentType.label}]</span></span>
         </Link>
         <span className="ml-auto text-xs text-muted-foreground">Step {step + 1} of {steps.length}</span>
       </header>
@@ -147,24 +165,22 @@ function OnboardingPage() {
                   <button
                     disabled={isLoading}
                     onClick={() => i <= step && setStep(i)}
-                    className={`w-full flex items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
-                      active ? "bg-white/5 glow-ring" : "hover:bg-white/3"
-                    }`}
+                    className={`w-full flex items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors ${active ? "bg-white/5 glow-ring" : "hover:bg-white/3"
+                      }`}
                   >
-                    <div className={`w-7 h-7 rounded-full border flex items-center justify-center text-xs ${
-                      done ? "bg-primary border-primary text-primary-foreground" :
+                    <div className={`w-7 h-7 rounded-full border flex items-center justify-center text-xs ${done ? "bg-primary border-primary text-primary-foreground" :
                       active ? "border-primary text-primary" :
-                      "border-white/15 text-muted-foreground"
-                    }`}>
+                        "border-white/15 text-muted-foreground"
+                      }`}>
                       {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
                     </div>
                     <div>
                       <div className={`text-sm ${active ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</div>
                       <div className="text-[11px] text-muted-foreground">
                         {s.key === "org" ? "Tell us about your business" :
-                         s.key === "warehouse" ? "Add your first warehouse" :
-                         s.key === "stores" ? "Connect retail stores" :
-                         "Tune the AI brain"}
+                          s.key === "warehouse" ? "Manage your inventory storage" :
+                            s.key === "stores" ? "Connect retail stores" :
+                              "Choose your industry wrapper"}
                       </div>
                     </div>
                   </button>
@@ -197,12 +213,17 @@ function OnboardingPage() {
               )}
               {step === 1 && (
                 <WarehouseStep
-                  whName={whName} setWhName={setWhName}
-                  whCode={whCode} setWhCode={setWhCode}
-                  whAddress={whAddress} setWhAddress={setWhAddress}
-                  whCapacity={whCapacity} setWhCapacity={setWhCapacity}
-                  whEmail={whEmail} setWhEmail={setWhEmail}
-                  whPhone={whPhone} setWhPhone={setWhPhone}
+                  warehouses={warehouses}
+                  onRemove={handleRemoveWarehouse}
+                  isAdding={isAddingWarehouse}
+                  setIsAdding={setIsAddingWarehouse}
+                  name={newWhName} setName={setNewWhName}
+                  code={newWhCode} setCode={setNewWhCode}
+                  address={newWhAddress} setAddress={setNewWhAddress}
+                  capacity={newWhCapacity} setCapacity={setNewWhCapacity}
+                  email={newWhEmail} setEmail={setNewWhEmail}
+                  phone={newWhPhone} setPhone={setNewWhPhone}
+                  onAdd={handleAddWarehouse}
                 />
               )}
               {step === 2 && (
@@ -218,7 +239,7 @@ function OnboardingPage() {
                 />
               )}
               {step === 3 && (
-                <AIStep preference={aiPreference} setPreference={setAiPreference} />
+                <BusinessTypeStep businessType={businessType} setBusinessType={setBusinessType} />
               )}
             </motion.div>
           </AnimatePresence>
@@ -337,77 +358,76 @@ function OrgStep({ orgName, setOrgName, legalName, setLegalName, industry, setIn
 }
 
 interface WarehouseStepProps {
-  whName: string; setWhName: (v: string) => void;
-  whCode: string; setWhCode: (v: string) => void;
-  whAddress: string; setWhAddress: (v: string) => void;
-  whCapacity: string; setWhCapacity: (v: string) => void;
-  whEmail: string; setWhEmail: (v: string) => void;
-  whPhone: string; setWhPhone: (v: string) => void;
+  warehouses: any[];
+  onRemove: (i: number) => void;
+  isAdding: boolean;
+  setIsAdding: (v: boolean) => void;
+  name: string; setName: (v: string) => void;
+  code: string; setCode: (v: string) => void;
+  address: string; setAddress: (v: string) => void;
+  capacity: string; setCapacity: (v: string) => void;
+  email: string; setEmail: (v: string) => void;
+  phone: string; setPhone: (v: string) => void;
+  onAdd: (e: React.FormEvent) => void;
 }
 
-function WarehouseStep({ whName, setWhName, whCode, setWhCode, whAddress, setWhAddress, whCapacity, setWhCapacity, whEmail, setWhEmail, whPhone, setWhPhone }: WarehouseStepProps) {
+function WarehouseStep({ warehouses, onRemove, isAdding, setIsAdding, name, setName, code, setCode, address, setAddress, capacity, setCapacity, email, setEmail, phone, setPhone, onAdd }: WarehouseStepProps) {
   return (
     <>
       <div>
         <div className="text-xs text-primary uppercase tracking-widest">Step 2</div>
-        <h2 className="font-display text-3xl mt-2 tracking-tight">Add your first warehouse</h2>
-        <p className="text-muted-foreground mt-2 text-sm">Warehouses are the source of truth for inventory and redistribution decisions.</p>
+        <h2 className="font-display text-3xl mt-2 tracking-tight">Configure Warehouses</h2>
+        <p className="text-muted-foreground mt-2 text-sm">Add one or more warehouses. You can also skip this if you're store-only.</p>
       </div>
-      <div className="grid sm:grid-cols-2 gap-4">
-        <label className="block">
-          <span className="text-xs text-muted-foreground">Warehouse name</span>
-          <input
-            value={whName}
-            onChange={(e) => setWhName(e.target.value)}
-            placeholder="Andheri Central"
-            className="mt-1.5 w-full h-11 rounded-xl border border-white/10 bg-white/2 px-3.5 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs text-muted-foreground">Code</span>
-          <input
-            value={whCode}
-            onChange={(e) => setWhCode(e.target.value)}
-            placeholder="WH-MUM-01"
-            className="mt-1.5 w-full h-11 rounded-xl border border-white/10 bg-white/2 px-3.5 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs text-muted-foreground">Address</span>
-          <input
-            value={whAddress}
-            onChange={(e) => setWhAddress(e.target.value)}
-            placeholder="MIDC, Andheri East, Mumbai"
-            className="mt-1.5 w-full h-11 rounded-xl border border-white/10 bg-white/2 px-3.5 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs text-muted-foreground">Capacity (units)</span>
-          <input
-            value={whCapacity}
-            onChange={(e) => setWhCapacity(e.target.value)}
-            placeholder="120,000"
-            className="mt-1.5 w-full h-11 rounded-xl border border-white/10 bg-white/2 px-3.5 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs text-muted-foreground">Manager email</span>
-          <input
-            value={whEmail}
-            onChange={(e) => setWhEmail(e.target.value)}
-            placeholder="manager@yourco.com"
-            className="mt-1.5 w-full h-11 rounded-xl border border-white/10 bg-white/2 px-3.5 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs text-muted-foreground">Phone</span>
-          <input
-            value={whPhone}
-            onChange={(e) => setWhPhone(e.target.value)}
-            placeholder="+91 98XX XXX XXX"
-            className="mt-1.5 w-full h-11 rounded-xl border border-white/10 bg-white/2 px-3.5 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
-          />
-        </label>
+
+      <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+        {warehouses.map((wh, i) => (
+          <div key={i} className="glass rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-linear-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center">
+              <Warehouse className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium">{wh.name} <span className="text-xs text-muted-foreground">({wh.code})</span></div>
+              <div className="text-xs text-muted-foreground">{wh.address || "No address"}</div>
+            </div>
+            <button
+              onClick={() => onRemove(i)}
+              className="text-muted-foreground hover:text-destructive p-1 rounded-lg hover:bg-white/5 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+
+        {isAdding ? (
+          <form onSubmit={onAdd} className="glass rounded-2xl p-6 border border-primary/20 space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <label className="block">
+                <span className="text-[10px] uppercase text-muted-foreground">Warehouse name</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Central Hub" className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-white/2 px-3 text-sm outline-none focus:border-primary/50" required />
+              </label>
+              <label className="block">
+                <span className="text-[10px] uppercase text-muted-foreground">Code</span>
+                <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="WH-001" className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-white/2 px-3 text-sm outline-none focus:border-primary/50" required />
+              </label>
+              <label className="block col-span-2">
+                <span className="text-[10px] uppercase text-muted-foreground">Address</span>
+                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Storage Ln..." className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-white/2 px-3 text-sm outline-none focus:border-primary/50" />
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setIsAdding(false)} className="h-9 px-4 rounded-lg text-sm text-muted-foreground hover:text-foreground">Cancel</button>
+              <button type="submit" className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium">Add Warehouse</button>
+            </div>
+          </form>
+        ) : (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="w-full h-14 rounded-2xl border border-dashed border-white/15 text-sm text-muted-foreground hover:text-foreground hover:border-white/30 flex items-center justify-center gap-2 transition-colors bg-white/2"
+          >
+            <Plus className="w-4 h-4" /> Add a warehouse
+          </button>
+        )}
       </div>
     </>
   );
@@ -508,42 +528,33 @@ function StoresStep({ stores, onRemove, isAddingStore, setIsAddingStore, newStor
   );
 }
 
-interface AIStepProps {
-  preference: string;
-  setPreference: (v: string) => void;
+interface BusinessTypeStepProps {
+  businessType: string;
+  setBusinessType: (v: string) => void;
 }
 
-function AIStep({ preference, setPreference }: AIStepProps) {
-  const opts = [
-    { t: "Autonomous", d: "AI executes redistributions and reorders automatically" },
-    { t: "Co-pilot", d: "AI suggests, you approve every action", rec: true },
-    { t: "Insights only", d: "Get insights without any automated actions" },
-  ];
+function BusinessTypeStep({ businessType, setBusinessType }: BusinessTypeStepProps) {
   return (
     <>
       <div>
         <div className="text-xs text-primary uppercase tracking-widest">Final step</div>
-        <h2 className="font-display text-3xl mt-2 tracking-tight">Tune your AI brain</h2>
-        <p className="text-muted-foreground mt-2 text-sm">Choose how much autonomy NexaStock has across your operations. You can change this later.</p>
+        <h2 className="font-display text-3xl mt-2 tracking-tight">Select your business wrapper</h2>
+        <p className="text-muted-foreground mt-2 text-sm">We'll tailor the interface and workflows to match your industry needs.</p>
       </div>
-      <div className="grid sm:grid-cols-3 gap-3">
-        {opts.map((o) => {
-          const selected = preference === o.t;
+      <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+        {BUSINESS_TYPES.map((t) => {
+          const selected = businessType === t.id;
           return (
             <button
-              key={o.t}
-              onClick={() => setPreference(o.t)}
-              className={`glass rounded-2xl p-5 text-left relative transition-all ${
-                selected ? "glow-ring border-primary bg-primary/5" : "hover:border-white/20"
-              }`}
+              key={t.id}
+              onClick={() => setBusinessType(t.id)}
+              className={`glass rounded-2xl p-5 text-left relative transition-all group ${selected ? "glow-ring border-primary bg-white/10" : "hover:border-white/20"
+                }`}
             >
-              {o.rec && (
-                <span className="absolute top-3 right-3 text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-md bg-primary/15 text-primary border border-primary/30">
-                  Recommended
-                </span>
-              )}
-              <div className="font-display text-lg">{o.t}</div>
-              <div className="text-xs text-muted-foreground mt-1.5">{o.d}</div>
+              <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">{t.icon}</div>
+              <div className="font-display text-xl">{t.label}</div>
+              <div className="text-xs text-muted-foreground mt-1">Specialized {t.label.toLowerCase()} inventory logic and theme.</div>
+              {selected && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-primary" />}
             </button>
           );
         })}
