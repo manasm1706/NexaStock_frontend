@@ -19,6 +19,7 @@ import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AiRouteImport } from './routes/ai'
+import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as IndexRouteImport } from './routes/index'
 
 const StoresRoute = StoresRouteImport.update({
@@ -71,6 +72,11 @@ const AiRoute = AiRouteImport.update({
   path: '/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AcceptInvitationRoute = AcceptInvitationRouteImport.update({
+  id: '/accept-invitation',
+  path: '/accept-invitation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -79,6 +85,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accept-invitation': typeof AcceptInvitationRoute
   '/ai': typeof AiRoute
   '/analytics': typeof AnalyticsRoute
   '/dashboard': typeof DashboardRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accept-invitation': typeof AcceptInvitationRoute
   '/ai': typeof AiRoute
   '/analytics': typeof AnalyticsRoute
   '/dashboard': typeof DashboardRoute
@@ -106,6 +114,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accept-invitation': typeof AcceptInvitationRoute
   '/ai': typeof AiRoute
   '/analytics': typeof AnalyticsRoute
   '/dashboard': typeof DashboardRoute
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accept-invitation'
     | '/ai'
     | '/analytics'
     | '/dashboard'
@@ -134,6 +144,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accept-invitation'
     | '/ai'
     | '/analytics'
     | '/dashboard'
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/accept-invitation'
     | '/ai'
     | '/analytics'
     | '/dashboard'
@@ -161,6 +173,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AcceptInvitationRoute: typeof AcceptInvitationRoute
   AiRoute: typeof AiRoute
   AnalyticsRoute: typeof AnalyticsRoute
   DashboardRoute: typeof DashboardRoute
@@ -245,6 +258,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accept-invitation': {
+      id: '/accept-invitation'
+      path: '/accept-invitation'
+      fullPath: '/accept-invitation'
+      preLoaderRoute: typeof AcceptInvitationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -257,6 +277,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AcceptInvitationRoute: AcceptInvitationRoute,
   AiRoute: AiRoute,
   AnalyticsRoute: AnalyticsRoute,
   DashboardRoute: DashboardRoute,

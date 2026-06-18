@@ -4,6 +4,7 @@ export const BUSINESS_TYPES = [
     { id: "kirana", label: "Kirana", icon: "🛒", color: "from-orange-600/20 to-yellow-600/20", border: "border-orange-500/30", text: "text-orange-400" },
     { id: "restaurant", label: "Restaurant", icon: "🍴", color: "from-red-600/20 to-orange-600/20", border: "border-red-500/30", text: "text-red-400" },
     { id: "electronics", label: "Electronics", icon: "💻", color: "from-zinc-600/20 to-slate-600/20", border: "border-zinc-500/30", text: "text-zinc-400" },
+    { id: "other", label: "Other", icon: "⚙️", color: "from-gray-600/20 to-neutral-600/20", border: "border-gray-500/30", text: "text-gray-400" },
 ];
 
 export function getBusinessType(id: string | null | undefined) {

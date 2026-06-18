@@ -83,19 +83,46 @@ async function apiRequest<T>(
     headers["x-tenant-id"] = tenantId;
   }
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+  } catch (err) {
+    throw new Error("Network error occurred. Please check your internet connection and try again.");
+  }
 
   if (!response.ok) {
     let errMsg = "API Request failed";
     try {
       const errorJson = await response.json();
-      errMsg = errorJson.error?.message || errMsg;
+      const serverMsg = errorJson.error?.message;
+      const errorCode = errorJson.error?.code;
+
+      if (serverMsg) {
+        errMsg = serverMsg;
+      }
+
+      // Map Prisma & database unique constraint errors or custom errors to friendly client messages
+      if (errorCode === "P2002" || errMsg.toLowerCase().includes("unique constraint") || errMsg.toLowerCase().includes("already registered")) {
+        errMsg = "This email address is already registered.";
+      } else if (errMsg.toLowerCase().includes("invalid credentials") || errMsg.toLowerCase().includes("invalid email or password")) {
+        errMsg = "Invalid email or password.";
+      } else if (response.status === 401 || errMsg.toLowerCase().includes("session expired") || errMsg.toLowerCase().includes("unauthorized")) {
+        errMsg = "Session expired or unauthorized. Please sign in again.";
+      } else if (response.status === 404 || errMsg.toLowerCase().includes("not found")) {
+        errMsg = "Account not found.";
+      }
     } catch {
-      // ignore
+      if (response.status === 401) {
+        errMsg = "Session expired. Please sign in again.";
+      } else if (response.status === 403) {
+        errMsg = "Invalid email or password.";
+      } else if (response.status === 404) {
+        errMsg = "Account not found.";
+      }
     }
     throw new Error(errMsg);
   }
@@ -207,6 +234,23 @@ export const api = {
     return apiRequest<any>("POST", "/inventory/adjustments", adjustment);
   },
 
+  async importInventory(payload: {
+    locationId: string;
+    fileType: "csv" | "xlsx";
+    items: Array<{
+      sku: string;
+      name: string;
+      category: string;
+      quantity: number;
+      unit: string;
+      purchasePrice: number;
+      sellingPrice: number;
+      reorderLevel: number;
+    }>;
+  }): Promise<{ success: boolean; added: number; updated: number }> {
+    return apiRequest<any>("POST", "/inventory/import", payload);
+  },
+
   // Transfers
   async getTransfers(): Promise<any[]> {
     return apiRequest<any[]>("GET", "/transfers");
@@ -243,14 +287,24 @@ export const api = {
   },
 
   // Analytics
-  async getAnalyticsDashboard(): Promise<any> {
-    return apiRequest<any>("GET", "/analytics/dashboard");
+  async getAnalyticsDashboard(startDate?: string, endDate?: string): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return apiRequest<any>("GET", `/analytics/dashboard${query}`);
   },
+
 
   // AI Insights
   async getAIInsights(): Promise<any> {
     return apiRequest<any>("GET", "/ai/insights");
   },
+
+  async askAIQuery(queryStr: string): Promise<any> {
+    return apiRequest<any>("POST", "/ai/query", { query: queryStr });
+  },
+
 
   // Audit Events
   async getAuditEvents(): Promise<any[]> {
@@ -265,5 +319,110 @@ export const api = {
   // Modules
   async getModules(): Promise<any> {
     return apiRequest<any>("GET", "/modules");
+  },
+
+  // Team Management & Invitations
+  async inviteUser(email: string, fullName: string, roleId: string): Promise<any> {
+    return apiRequest<any>("POST", "/users/invite", { email, fullName, roleId });
+  },
+
+  async resendInvitation(userId: string): Promise<any> {
+    return apiRequest<any>("POST", `/users/${userId}/resend-invite`);
+  },
+
+  async cancelInvitation(userId: string): Promise<any> {
+    return apiRequest<any>("POST", `/users/${userId}/cancel-invite`);
+  },
+
+  async updateUserRole(userId: string, roleId: string): Promise<any> {
+    return apiRequest<any>("PUT", `/users/${userId}/role`, { roleId });
+  },
+
+  async deactivateUser(userId: string): Promise<any> {
+    return apiRequest<any>("POST", `/users/${userId}/deactivate`);
+  },
+
+  async reactivateUser(userId: string): Promise<any> {
+    return apiRequest<any>("POST", `/users/${userId}/reactivate`);
+  },
+
+  async removeUser(userId: string): Promise<any> {
+    return apiRequest<any>("DELETE", `/users/${userId}`);
+  },
+
+  // Public invitation acceptance
+  async getInvitationDetails(token: string): Promise<any> {
+    return apiRequest<any>("GET", `/auth/invitation/${token}`);
+  },
+
+  async acceptInvitation(payload: { token: string; password?: string }): Promise<any> {
+    return apiRequest<any>("POST", "/auth/invitation/accept", payload);
+  },
+
+  // Profile and password
+  async updateProfile(payload: { fullName: string; email: string }): Promise<any> {
+    return apiRequest<any>("PUT", "/settings/profile", payload);
+  },
+
+  async changePassword(payload: any): Promise<any> {
+    return apiRequest<any>("PUT", "/settings/password", payload);
+  },
+
+  // Security policy and sessions
+  async getActiveSessions(): Promise<any[]> {
+    return apiRequest<any[]>("GET", "/security/sessions");
+  },
+
+  async revokeOtherSessions(currentSessionId?: string): Promise<any> {
+    return apiRequest<any>("POST", "/security/sessions/revoke-others", { currentSessionId });
+  },
+
+  async getPasswordPolicy(): Promise<any> {
+    return apiRequest<any>("GET", "/security/policy");
+  },
+
+  async updatePasswordPolicy(payload: any): Promise<any> {
+    return apiRequest<any>("PUT", "/security/policy", payload);
+  },
+
+  // Notification Preferences
+  async getNotificationPreferences(): Promise<any> {
+    return apiRequest<any>("GET", "/settings/notifications");
+  },
+
+  async updateNotificationPreferences(payload: any): Promise<any> {
+    return apiRequest<any>("PUT", "/settings/notifications", payload);
+  },
+
+  // Workspace Personalization
+  async getWorkspaceSettings(): Promise<any> {
+    return apiRequest<any>("GET", "/settings/workspace");
+  },
+
+  async updateWorkspaceSettings(payload: any): Promise<any> {
+    return apiRequest<any>("PUT", "/settings/workspace", payload);
+  },
+
+
+  // Roles & Permissions matrix
+  async getRoles(): Promise<any[]> {
+    return apiRequest<any[]>("GET", "/roles");
+  },
+
+  async createCustomRole(name: string, description: string): Promise<any> {
+    return apiRequest<any>("POST", "/roles", { name, description });
+  },
+
+  async getRolePermissions(roleId: string): Promise<any[]> {
+    return apiRequest<any[]>("GET", `/roles/${roleId}/permissions`);
+  },
+
+  async saveRolePermissions(roleId: string, permissions: Array<{ code: string; allowed: boolean }>): Promise<any> {
+    return apiRequest<any>("PUT", `/roles/${roleId}/permissions`, { permissions });
+  },
+
+  // Organization settings
+  async updateTenantSummary(payload: { name: string; legalName: string; timezone: string; primaryCurrency: string }): Promise<any> {
+    return apiRequest<any>("PUT", "/tenants/current", payload);
   }
 };

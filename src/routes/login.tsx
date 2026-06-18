@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Logo, LogoMark } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Form } from "@/components/ui/form";
+import { FormTextField } from "@/components/ui/FormTextField";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema, LoginInput } from "@/lib/schemas/auth";
 import { motion } from "motion/react";
-import { useState } from "react";
 import { api } from "@/lib/api/client";
 import { toast } from "sonner";
 
@@ -14,27 +16,25 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const form = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+    mode: "onChange",
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please enter email and password");
-      return;
-    }
+  const { isSubmitting, isValid } = form.formState;
 
-    setIsLoading(true);
+  const handleLogin = async (data: LoginInput) => {
     try {
-      await api.login(email, password);
-      toast.success("Welcome back!");
+      await api.login(data.email, data.password);
+      toast.success("Signed in successfully. Welcome back!");
       navigate({ to: "/dashboard" });
     } catch (error: any) {
-      toast.error(error.message || "Failed to sign in");
-    } finally {
-      setIsLoading(false);
+      toast.error(error.message || "Invalid email or password");
     }
   };
 
@@ -70,52 +70,50 @@ function LoginPage() {
           <h1 className="font-display text-3xl font-semibold tracking-tight">Welcome back</h1>
           <p className="text-muted-foreground mt-1.5">Sign in to your NexaStock workspace.</p>
 
-          <form className="mt-8 space-y-4" onSubmit={handleLogin}>
-            <div className="space-y-2">
-              <Label htmlFor="email">Work email</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="you@company.com" 
-                className="h-11 bg-white/3 border-white/10" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+          <Form {...form}>
+            <form className="mt-8 space-y-4" onSubmit={form.handleSubmit(handleLogin)}>
+              <FormTextField
+                control={form.control}
+                name="email"
+                label="Work email"
+                type="email"
+                placeholder="you@company.com"
                 required
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                placeholder="••••••••" 
-                className="h-11 bg-white/3 border-white/10" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+              
+              <FormTextField
+                control={form.control}
+                name="password"
+                label="Password"
+                type="password"
+                placeholder="••••••••"
                 required
               />
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <label className="inline-flex items-center gap-2 text-muted-foreground cursor-pointer">
-                <input type="checkbox" className="accent-primary"/> Remember me
-              </label>
-              <a className="text-primary hover:underline" href="#">Forgot password?</a>
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full h-11 bg-linear-to-b from-primary to-[oklch(0.52_0.22_268)] shadow-glow-sm"
-              disabled={isLoading}
-            >
-              {isLoading ? "Signing in..." : "Sign in"}
-            </Button>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground my-3">
-              <div className="h-px flex-1 bg-white/10"/> or continue with <div className="h-px flex-1 bg-white/10"/>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Button type="button" variant="outline" className="h-11 bg-white/2 border-white/10 hover:bg-white/5">Google</Button>
-              <Button type="button" variant="outline" className="h-11 bg-white/2 border-white/10 hover:bg-white/5">Microsoft</Button>
-            </div>
-          </form>
+
+              <div className="flex items-center justify-between text-sm">
+                <label className="inline-flex items-center gap-2 text-muted-foreground cursor-pointer">
+                  <input type="checkbox" className="accent-primary"/> Remember me
+                </label>
+                <a className="text-primary hover:underline" href="#">Forgot password?</a>
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full h-11 bg-linear-to-b from-primary to-[oklch(0.52_0.22_268)] shadow-glow-sm cursor-pointer"
+                disabled={!isValid || isSubmitting}
+              >
+                {isSubmitting ? "Signing in..." : "Sign in"}
+              </Button>
+              
+              <div className="flex items-center gap-3 text-xs text-muted-foreground my-3">
+                <div className="h-px flex-1 bg-white/10"/> or continue with <div className="h-px flex-1 bg-white/10"/>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Button type="button" variant="outline" className="h-11 bg-white/2 border-white/10 hover:bg-white/5 cursor-pointer">Google</Button>
+                <Button type="button" variant="outline" className="h-11 bg-white/2 border-white/10 hover:bg-white/5 cursor-pointer">Microsoft</Button>
+              </div>
+            </form>
+          </Form>
 
           <div className="mt-6 text-sm text-muted-foreground">
             New to NexaStock? <Link to="/register" className="text-primary hover:underline">Create an account</Link>
