@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/app/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/card/GlassCard";
@@ -15,6 +15,16 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings · NexaStock" }] }),
+  beforeLoad: ({ location }) => {
+    if (!authState.isAuthenticated()) {
+      throw redirect({
+        to: "/login",
+        search: {
+          redirect: location.href,
+        },
+      });
+    }
+  },
   component: SettingsPage,
 });
 

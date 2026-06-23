@@ -11,16 +11,26 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StoresRouteImport } from './routes/stores'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SecurityRouteImport } from './routes/security'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PosRouteImport } from './routes/pos'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as CustomersRouteImport } from './routes/customers'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlatformRolesRouteImport } from './routes/platform.roles'
+import { Route as PlatformPosRouteImport } from './routes/platform.pos'
+import { Route as PlatformInventoryRouteImport } from './routes/platform.inventory'
+import { Route as PlatformAnalyticsRouteImport } from './routes/platform.analytics'
+import { Route as PlatformAiCenterRouteImport } from './routes/platform.ai-center'
 
 const StoresRoute = StoresRouteImport.update({
   id: '/stores',
@@ -32,9 +42,19 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SecurityRoute = SecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PosRoute = PosRouteImport.update({
@@ -62,6 +82,16 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CustomersRoute = CustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -77,113 +107,213 @@ const AcceptInvitationRoute = AcceptInvitationRouteImport.update({
   path: '/accept-invitation',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformRolesRoute = PlatformRolesRouteImport.update({
+  id: '/platform/roles',
+  path: '/platform/roles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformPosRoute = PlatformPosRouteImport.update({
+  id: '/platform/pos',
+  path: '/platform/pos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformInventoryRoute = PlatformInventoryRouteImport.update({
+  id: '/platform/inventory',
+  path: '/platform/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformAnalyticsRoute = PlatformAnalyticsRouteImport.update({
+  id: '/platform/analytics',
+  path: '/platform/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformAiCenterRoute = PlatformAiCenterRouteImport.update({
+  id: '/platform/ai-center',
+  path: '/platform/ai-center',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/ai': typeof AiRoute
   '/analytics': typeof AnalyticsRoute
+  '/contact': typeof ContactRoute
+  '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pos': typeof PosRoute
+  '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
+  '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/stores': typeof StoresRoute
+  '/platform/ai-center': typeof PlatformAiCenterRoute
+  '/platform/analytics': typeof PlatformAnalyticsRoute
+  '/platform/inventory': typeof PlatformInventoryRoute
+  '/platform/pos': typeof PlatformPosRoute
+  '/platform/roles': typeof PlatformRolesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/ai': typeof AiRoute
   '/analytics': typeof AnalyticsRoute
+  '/contact': typeof ContactRoute
+  '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pos': typeof PosRoute
+  '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
+  '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/stores': typeof StoresRoute
+  '/platform/ai-center': typeof PlatformAiCenterRoute
+  '/platform/analytics': typeof PlatformAnalyticsRoute
+  '/platform/inventory': typeof PlatformInventoryRoute
+  '/platform/pos': typeof PlatformPosRoute
+  '/platform/roles': typeof PlatformRolesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/ai': typeof AiRoute
   '/analytics': typeof AnalyticsRoute
+  '/contact': typeof ContactRoute
+  '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pos': typeof PosRoute
+  '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
+  '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/stores': typeof StoresRoute
+  '/platform/ai-center': typeof PlatformAiCenterRoute
+  '/platform/analytics': typeof PlatformAnalyticsRoute
+  '/platform/inventory': typeof PlatformInventoryRoute
+  '/platform/pos': typeof PlatformPosRoute
+  '/platform/roles': typeof PlatformRolesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/accept-invitation'
     | '/ai'
     | '/analytics'
+    | '/contact'
+    | '/customers'
     | '/dashboard'
     | '/inventory'
     | '/login'
     | '/onboarding'
     | '/pos'
+    | '/pricing'
     | '/register'
+    | '/security'
     | '/settings'
     | '/stores'
+    | '/platform/ai-center'
+    | '/platform/analytics'
+    | '/platform/inventory'
+    | '/platform/pos'
+    | '/platform/roles'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/accept-invitation'
     | '/ai'
     | '/analytics'
+    | '/contact'
+    | '/customers'
     | '/dashboard'
     | '/inventory'
     | '/login'
     | '/onboarding'
     | '/pos'
+    | '/pricing'
     | '/register'
+    | '/security'
     | '/settings'
     | '/stores'
+    | '/platform/ai-center'
+    | '/platform/analytics'
+    | '/platform/inventory'
+    | '/platform/pos'
+    | '/platform/roles'
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/accept-invitation'
     | '/ai'
     | '/analytics'
+    | '/contact'
+    | '/customers'
     | '/dashboard'
     | '/inventory'
     | '/login'
     | '/onboarding'
     | '/pos'
+    | '/pricing'
     | '/register'
+    | '/security'
     | '/settings'
     | '/stores'
+    | '/platform/ai-center'
+    | '/platform/analytics'
+    | '/platform/inventory'
+    | '/platform/pos'
+    | '/platform/roles'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   AcceptInvitationRoute: typeof AcceptInvitationRoute
   AiRoute: typeof AiRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  ContactRoute: typeof ContactRoute
+  CustomersRoute: typeof CustomersRoute
   DashboardRoute: typeof DashboardRoute
   InventoryRoute: typeof InventoryRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   PosRoute: typeof PosRoute
+  PricingRoute: typeof PricingRoute
   RegisterRoute: typeof RegisterRoute
+  SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRoute
   StoresRoute: typeof StoresRoute
+  PlatformAiCenterRoute: typeof PlatformAiCenterRoute
+  PlatformAnalyticsRoute: typeof PlatformAnalyticsRoute
+  PlatformInventoryRoute: typeof PlatformInventoryRoute
+  PlatformPosRoute: typeof PlatformPosRoute
+  PlatformRolesRoute: typeof PlatformRolesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -202,11 +332,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/security': {
+      id: '/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof SecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pos': {
@@ -244,6 +388,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/customers': {
+      id: '/customers'
+      path: '/customers'
+      fullPath: '/customers'
+      preLoaderRoute: typeof CustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analytics': {
       id: '/analytics'
       path: '/analytics'
@@ -265,6 +423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcceptInvitationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -272,22 +437,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform/roles': {
+      id: '/platform/roles'
+      path: '/platform/roles'
+      fullPath: '/platform/roles'
+      preLoaderRoute: typeof PlatformRolesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/pos': {
+      id: '/platform/pos'
+      path: '/platform/pos'
+      fullPath: '/platform/pos'
+      preLoaderRoute: typeof PlatformPosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/inventory': {
+      id: '/platform/inventory'
+      path: '/platform/inventory'
+      fullPath: '/platform/inventory'
+      preLoaderRoute: typeof PlatformInventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/analytics': {
+      id: '/platform/analytics'
+      path: '/platform/analytics'
+      fullPath: '/platform/analytics'
+      preLoaderRoute: typeof PlatformAnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/ai-center': {
+      id: '/platform/ai-center'
+      path: '/platform/ai-center'
+      fullPath: '/platform/ai-center'
+      preLoaderRoute: typeof PlatformAiCenterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   AcceptInvitationRoute: AcceptInvitationRoute,
   AiRoute: AiRoute,
   AnalyticsRoute: AnalyticsRoute,
+  ContactRoute: ContactRoute,
+  CustomersRoute: CustomersRoute,
   DashboardRoute: DashboardRoute,
   InventoryRoute: InventoryRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   PosRoute: PosRoute,
+  PricingRoute: PricingRoute,
   RegisterRoute: RegisterRoute,
+  SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRoute,
   StoresRoute: StoresRoute,
+  PlatformAiCenterRoute: PlatformAiCenterRoute,
+  PlatformAnalyticsRoute: PlatformAnalyticsRoute,
+  PlatformInventoryRoute: PlatformInventoryRoute,
+  PlatformPosRoute: PlatformPosRoute,
+  PlatformRolesRoute: PlatformRolesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

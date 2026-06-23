@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/app/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/card/GlassCard";
@@ -6,12 +6,22 @@ import { SectionTitle } from "@/components/ui/typography";
 import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, ArrowRight, Brain, GitBranch, Wand2, Send, Zap, Loader2, AlertTriangle, ShieldCheck, HelpCircle, TrendingUp, TrendingDown, ArrowUpRight, Info } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api/client";
+import { api, authState } from "@/lib/api/client";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/ai")({
   head: () => ({ meta: [{ title: "AI Center · NexaStock" }] }),
+  beforeLoad: ({ location }) => {
+    if (!authState.isAuthenticated()) {
+      throw redirect({
+        to: "/login",
+        search: {
+          redirect: location.href,
+        },
+      });
+    }
+  },
   component: AIPage,
 });
 

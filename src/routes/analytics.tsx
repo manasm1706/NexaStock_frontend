@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/app/DashboardLayout";
 import { AnalyticsBars } from "@/components/analytics/AnalyticsBars";
 import { GlassCard, MetricCard } from "@/components/ui/card/GlassCard";
@@ -12,6 +12,16 @@ import { motion, AnimatePresence } from "motion/react";
 
 export const Route = createFileRoute("/analytics")({
   head: () => ({ meta: [{ title: "Analytics · NexaStock" }] }),
+  beforeLoad: ({ location }) => {
+    if (!authState.isAuthenticated()) {
+      throw redirect({
+        to: "/login",
+        search: {
+          redirect: location.href,
+        },
+      });
+    }
+  },
   component: AnalyticsPage,
 });
 

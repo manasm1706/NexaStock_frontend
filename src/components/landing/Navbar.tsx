@@ -2,8 +2,16 @@ import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
 import { motion } from "motion/react";
+import { authState } from "@/lib/api/client";
+import { useEffect, useState } from "react";
 
 export function Navbar() {
+  const [isAuth, setIsAuth] = useState(false);
+
+  useEffect(() => {
+    setIsAuth(authState.isAuthenticated());
+  }, []);
+
   const links = [
     { label: "Platform", href: "#platform" },
     { label: "Industries", href: "#industries" },
@@ -25,7 +33,15 @@ export function Navbar() {
           ))}
         </ul>
         <div className="ml-auto flex items-center gap-2">
-          <Link to="/login"><Button variant="ghost" size="sm" className="text-foreground/80 hover:text-foreground">Sign in</Button></Link>
+          {isAuth ? (
+            <Link to="/dashboard">
+              <Button variant="premiumGradient" size="sm" className="cursor-pointer">Open Dashboard</Button>
+            </Link>
+          ) : (
+            <Link to="/login">
+              <Button variant="ghost" size="sm" className="text-foreground/80 hover:text-foreground cursor-pointer">Sign in</Button>
+            </Link>
+          )}
         </div>
       </nav>
     </motion.header>

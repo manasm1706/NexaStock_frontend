@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/app/DashboardLayout";
 import { InventoryTable } from "@/components/inventory/InventoryTable";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { SectionTitle } from "@/components/ui/typography";
 import { motion } from "motion/react";
 import { Plus, Filter, Download, Loader2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api/client";
+import { api, authState } from "@/lib/api/client";
 import * as XLSX from "xlsx";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -26,6 +26,16 @@ import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/inventory")({
   head: () => ({ meta: [{ title: "Inventory · NexaStock" }] }),
+  beforeLoad: ({ location }) => {
+    if (!authState.isAuthenticated()) {
+      throw redirect({
+        to: "/login",
+        search: {
+          redirect: location.href,
+        },
+      });
+    }
+  },
   component: InventoryPage,
 });
 

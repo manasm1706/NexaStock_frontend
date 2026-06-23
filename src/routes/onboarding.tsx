@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { LogoMark } from "@/components/brand/Logo";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Check, 
@@ -16,7 +16,8 @@ import {
   Upload, 
   Download, 
   FileSpreadsheet,
-  AlertTriangle
+  AlertTriangle,
+  LayoutGrid
 } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ const steps = [
   { key: "warehouse", label: "Warehouse", icon: Warehouse },
   { key: "stores", label: "Stores", icon: Store },
   { key: "business", label: "Business Type", icon: Sparkles },
+  { key: "features", label: "Choose Features", icon: LayoutGrid },
 ];
 
 // Browser template downloaders
@@ -99,6 +101,9 @@ function OnboardingPage() {
   const [businessType, setBusinessType] = useState("electronics");
   const [customBusinessType, setCustomBusinessType] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([
+    "inventory", "pos", "analytics", "ai", "stores", "team", "notifications"
+  ]);
 
   // Validation errors states
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -147,6 +152,15 @@ function OnboardingPage() {
       return;
     }
 
+    const trimmedCode = newWhCode.trim().toLowerCase();
+    const isCodeWhDuplicate = warehouses.some(w => w.code.trim().toLowerCase() === trimmedCode);
+    const isCodeStoreDuplicate = stores.some(s => s.code.trim().toLowerCase() === trimmedCode);
+    if (isCodeWhDuplicate || isCodeStoreDuplicate) {
+      setWhErrors({ code: "This code is already assigned to a store or warehouse." });
+      toast.error("Code duplication found. Please specify a unique location code.");
+      return;
+    }
+
     if (whUploadPreview && whUploadPreview.errors.length > 0) {
       toast.error("Please fix spreadsheet validation errors or clear the file.");
       return;
@@ -191,6 +205,15 @@ function OnboardingPage() {
     if (Object.keys(errs).length > 0) {
       setStoreErrors(errs);
       toast.error("Please fill in required store details.");
+      return;
+    }
+
+    const trimmedCode = newStoreCode.trim().toLowerCase();
+    const isCodeWhDuplicate = warehouses.some(w => w.code.trim().toLowerCase() === trimmedCode);
+    const isCodeStoreDuplicate = stores.some(s => s.code.trim().toLowerCase() === trimmedCode);
+    if (isCodeWhDuplicate || isCodeStoreDuplicate) {
+      setStoreErrors({ code: "This code is already assigned to a store or warehouse." });
+      toast.error("Code duplication found. Please specify a unique location code.");
       return;
     }
 
@@ -255,9 +278,12 @@ function OnboardingPage() {
 
     setIsLoading(true);
     try {
-      const signupFullName = sessionStorage.getItem("nexastock_signup_fullName") || "Owner";
-      const signupEmail = sessionStorage.getItem("nexastock_signup_email") || "owner@acme.example";
-      const signupPassword = sessionStorage.getItem("nexastock_signup_password") || "password123";
+      const googleSignupStr = sessionStorage.getItem("nexastock_google_signup");
+      const googleSignupData = googleSignupStr ? JSON.parse(googleSignupStr) : null;
+
+      const signupFullName = googleSignupData?.fullName || sessionStorage.getItem("nexastock_signup_fullName") || "Owner";
+      const signupEmail = googleSignupData?.email || sessionStorage.getItem("nexastock_signup_email") || "owner@acme.example";
+      const signupPassword = googleSignupData ? undefined : (sessionStorage.getItem("nexastock_signup_password") || "password123");
 
       const finalBusiness = businessType === "other" ? customBusinessType : businessType;
 
@@ -272,10 +298,12 @@ function OnboardingPage() {
         warehouses: warehouses,
         stores: stores,
         businessType: finalBusiness,
+        selectedFeatures: selectedFeatures,
         adminUser: {
           fullName: signupFullName,
           email: signupEmail,
-          password: signupPassword
+          password: signupPassword,
+          googleId: googleSignupData?.googleId
         }
       };
 
@@ -296,6 +324,7 @@ function OnboardingPage() {
       sessionStorage.removeItem("nexastock_signup_email");
       sessionStorage.removeItem("nexastock_signup_company");
       sessionStorage.removeItem("nexastock_signup_password");
+      sessionStorage.removeItem("nexastock_google_signup");
 
       toast.success("Workspace successfully launched!");
       navigate({ to: "/dashboard" });
@@ -310,6 +339,14 @@ function OnboardingPage() {
       if (userMessage.toLowerCase().includes("organization")) {
         setErrors(prev => ({ ...prev, orgName: userMessage }));
         setStep(0);
+      }
+      if (userMessage.toLowerCase().includes("store")) {
+        setStoreErrors({ code: userMessage });
+        setStep(2);
+      }
+      if (userMessage.toLowerCase().includes("warehouse")) {
+        setWhErrors({ code: userMessage });
+        setStep(1);
       }
     } finally {
       setIsLoading(false);
@@ -365,7 +402,8 @@ function OnboardingPage() {
                         {s.key === "org" ? "Establish organization" :
                          s.key === "warehouse" ? "Manage warehouses & stock" :
                          s.key === "stores" ? "Connect stores & stock" :
-                         "Choose wrapper logic"}
+                         s.key === "business" ? "Choose wrapper logic" :
+                         "Select enabled modules"}
                       </div>
                     </div>
                   </button>
@@ -444,6 +482,12 @@ function OnboardingPage() {
                   customBusinessType={customBusinessType}
                   setCustomBusinessType={setCustomBusinessType}
                   errors={errors}
+                />
+              )}
+              {step === 4 && (
+                <FeaturesStep 
+                  selectedFeatures={selectedFeatures} 
+                  setSelectedFeatures={setSelectedFeatures} 
                 />
               )}
             </motion.div>
@@ -917,7 +961,7 @@ function WarehouseStep({
         <p className="text-muted-foreground mt-2 text-sm">Add one or more warehouses. You can also skip this if you're store-only.</p>
       </div>
 
-      <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mb-4 pr-1">
         {warehouses.map((wh, i) => (
           <div key={i} className="glass rounded-2xl p-4 flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-linear-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center">
@@ -1046,7 +1090,7 @@ function StoresStep({
         <h2 className="font-display text-3xl mt-2 tracking-tight text-foreground font-semibold">Connect your retail stores</h2>
         <p className="text-muted-foreground mt-2 text-sm">Add as many as you'd like — you can bulk-import later via CSV or API.</p>
       </div>
-      <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mb-4 pr-1">
         {stores.map((s, i) => (
           <div key={i} className="glass rounded-2xl p-4 flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-linear-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center">
@@ -1226,6 +1270,73 @@ function BusinessTypeStep({ businessType, setBusinessType, customBusinessType, s
           </label>
         </motion.div>
       )}
+    </>
+  );
+}
+
+interface FeaturesStepProps {
+  selectedFeatures: string[];
+  setSelectedFeatures: (v: string[]) => void;
+}
+
+function FeaturesStep({ selectedFeatures, setSelectedFeatures }: FeaturesStepProps) {
+  const featuresList = [
+    { id: "inventory", label: "Inventory Management", desc: "Track stock counts, reorder alerts, and warehouse movements." },
+    { id: "pos", label: "Point of Sale (POS)", desc: "Fast barcode scanning checkout, invoice receipts, and cash register ledger." },
+    { id: "analytics", label: "Analytics & Reports", desc: "Revenue trends, slow/fast stock velocity, and regional margins." },
+    { id: "ai", label: "AI Operations Brain", desc: "Demand projections, autonomous stock rebalancing recommendations." },
+    { id: "stores", label: "Multi-Location Sync", desc: "Connect and synchronize warehouse hubs and store counters." },
+    { id: "team", label: "Team & Roles", desc: "Enforce secure permission matrices and invite branch managers." },
+    { id: "notifications", label: "Alert Notifications", desc: "Get notified on stockouts, dead stock, and system activity." },
+  ];
+
+  const handleToggle = (id: string) => {
+    if (selectedFeatures.includes(id)) {
+      setSelectedFeatures(selectedFeatures.filter(f => f !== id));
+    } else {
+      setSelectedFeatures([...selectedFeatures, id]);
+    }
+  };
+
+  return (
+    <>
+      <div>
+        <div className="text-xs text-primary uppercase tracking-widest font-semibold">Workspace Personalization</div>
+        <h2 className="font-display text-3xl mt-2 tracking-tight text-foreground font-semibold">Choose Your Features</h2>
+        <p className="text-muted-foreground mt-2 text-sm font-sans">Select the modules you want to enable in your NexaStock dashboard. You can always change this later in Settings.</p>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        {featuresList.map((f) => {
+          const active = selectedFeatures.includes(f.id);
+          return (
+            <button
+              type="button"
+              key={f.id}
+              onClick={() => handleToggle(f.id)}
+              className={cn(
+                "glass rounded-2xl p-5 text-left relative transition-all group cursor-pointer border flex items-start gap-3.5",
+                active 
+                  ? "glow-ring border-primary bg-white/10" 
+                  : "border-white/10 hover:border-white/20 bg-white/2"
+              )}
+            >
+              <div className="mt-0.5 shrink-0">
+                <div className={cn(
+                  "w-5 h-5 rounded-md border flex items-center justify-center transition-colors",
+                  active ? "bg-primary border-primary text-primary-foreground" : "border-white/25"
+                )}>
+                  {active && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                </div>
+              </div>
+              <div>
+                <div className="font-display text-base text-foreground font-semibold leading-none">{f.label}</div>
+                <div className="text-xs text-muted-foreground mt-1.5 leading-relaxed font-sans">{f.desc}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </>
   );
 }

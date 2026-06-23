@@ -1,10 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { LogoMark } from "@/components/brand/Logo";
 import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Search, Plus, Minus, Trash2, ScanLine, CreditCard, Wallet, Smartphone, Sparkles, Loader2, Store as StoreIcon, Pause, Play, Printer, Receipt } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api/client";
+import { api, authState } from "@/lib/api/client";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -22,6 +22,16 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/pos")({
   head: () => ({ meta: [{ title: "POS · NexaStock" }] }),
+  beforeLoad: ({ location }) => {
+    if (!authState.isAuthenticated()) {
+      throw redirect({
+        to: "/login",
+        search: {
+          redirect: location.href,
+        },
+      });
+    }
+  },
   component: POSPage,
 });
 

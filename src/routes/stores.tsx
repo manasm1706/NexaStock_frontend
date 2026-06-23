@@ -1,11 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/app/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/card/GlassCard";
 import { motion } from "motion/react";
 import { Store, MapPin, TrendingUp, Plus, Loader2, Warehouse } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api/client";
+import { api, authState } from "@/lib/api/client";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -23,6 +23,16 @@ import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/stores")({
   head: () => ({ meta: [{ title: "Stores · NexaStock" }] }),
+  beforeLoad: ({ location }) => {
+    if (!authState.isAuthenticated()) {
+      throw redirect({
+        to: "/login",
+        search: {
+          redirect: location.href,
+        },
+      });
+    }
+  },
   component: StoresPage,
 });
 

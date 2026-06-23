@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { motion } from "motion/react";
 import { ArrowRight, Sparkles, TrendingUp, Package, Boxes, Brain } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { authState } from "@/lib/api/client";
+import { useEffect, useState } from "react";
 
 function FloatingCard({
   delay = 0, className = "", children,
@@ -19,6 +21,12 @@ function FloatingCard({
 }
 
 export function Hero() {
+  const [isAuth, setIsAuth] = useState(false);
+
+  useEffect(() => {
+    setIsAuth(authState.isAuthenticated());
+  }, []);
+
   return (
     <section className="relative pt-36 pb-28 overflow-hidden">
       <div className="absolute inset-0 grid-bg pointer-events-none" />
@@ -68,14 +76,24 @@ export function Hero() {
           transition={{ delay: 0.3, duration: 0.8 }}
           className="mt-9 flex items-center justify-center gap-3"
         >
-          <Link to="/register">
-            <Button size="lg" className="h-12 px-6 bg-gradient-to-b from-primary to-[oklch(0.52_0.22_268)] text-primary-foreground shadow-glow hover:brightness-110">
-              Start Free Trial <ArrowRight className="ml-1.5 w-4 h-4" />
-            </Button>
-          </Link>
-          <Button size="lg" variant="ghost" className="h-12 px-6 glass hover:bg-white/5">
-            Book a demo
-          </Button>
+          {isAuth ? (
+            <Link to="/dashboard">
+              <Button size="lg" className="h-12 px-8 bg-gradient-to-b from-primary to-[oklch(0.52_0.22_268)] text-primary-foreground shadow-glow hover:brightness-110 cursor-pointer">
+                Open Dashboard <ArrowRight className="ml-1.5 w-4 h-4" />
+              </Button>
+            </Link>
+          ) : (
+            <>
+              <Link to="/register">
+                <Button size="lg" className="h-12 px-6 bg-gradient-to-b from-primary to-[oklch(0.52_0.22_268)] text-primary-foreground shadow-glow hover:brightness-110 cursor-pointer">
+                  Start Free Trial <ArrowRight className="ml-1.5 w-4 h-4" />
+                </Button>
+              </Link>
+              <Button size="lg" variant="ghost" className="h-12 px-6 glass hover:bg-white/5 cursor-pointer">
+                Book a demo
+              </Button>
+            </>
+          )}
         </motion.div>
 
         {/* Dashboard preview composition */}

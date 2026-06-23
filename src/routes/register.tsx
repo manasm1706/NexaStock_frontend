@@ -8,6 +8,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSchema, RegisterInput } from "@/lib/schemas/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { api, authState } from "@/lib/api/client";
+import { useEffect } from "react";
+import { GoogleLogin } from "@react-oauth/google";
 
 export const Route = createFileRoute("/register")({
   head: () => ({ meta: [{ title: "Create account · NexaStock" }] }),
@@ -34,6 +37,13 @@ function getPasswordStrength(password: string) {
 
 function RegisterPage() {
   const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (authState.isAuthenticated()) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [navigate]);
+
   const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
     mode: "onChange",
@@ -64,13 +74,34 @@ function RegisterPage() {
     }
   };
 
+  const handleGoogleSuccess = async (credential: string) => {
+    try {
+      const res = await api.googleLogin(credential);
+      if (res.isNewUser) {
+        // Save Google details to sessionStorage and redirect to onboarding
+        sessionStorage.setItem("nexastock_google_signup", JSON.stringify({
+          email: res.email,
+          fullName: res.fullName,
+          googleId: res.googleId
+        }));
+        toast.info("Google verification successful. Please complete organization onboarding.");
+        navigate({ to: "/onboarding" });
+      } else {
+        toast.success("Signed in successfully via Google!");
+        navigate({ to: "/dashboard" });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed Google Sign-Up");
+    }
+  };
+
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <div className="absolute inset-0 grid-bg pointer-events-none -z-10" />
       <div className="w-full max-w-md glass rounded-3xl p-8 shadow-premium">
         <Link to="/"><Logo /></Link>
         <h1 className="font-display text-2xl font-semibold mt-6 tracking-tight">Start your free trial</h1>
-        <p className="text-sm text-muted-foreground">14 days free. No credit card required.</p>
+        <p className="text-sm text-muted-foreground font-sans">14 days free. No credit card required.</p>
         
         <Form {...form}>
           <form className="mt-6 space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
@@ -140,6 +171,26 @@ function RegisterPage() {
             >
               {isSubmitting ? "Creating workspace..." : "Create workspace"}
             </Button>
+            
+            <div className="flex items-center gap-3 text-xs text-muted-foreground my-3">
+              <div className="h-px flex-1 bg-white/10"/> or continue with <div className="h-px flex-1 bg-white/10"/>
+            </div>
+            
+            <div className="flex justify-center w-full">
+              <GoogleLogin
+                onSuccess={(res) => {
+                  if (res.credential) {
+                    handleGoogleSuccess(res.credential);
+                  }
+                }}
+                onError={() => {
+                  toast.error("Google Sign-In failed");
+                }}
+                theme="filled_black"
+                shape="pill"
+                width="384px"
+              />
+            </div>
           </form>
         </Form>
         

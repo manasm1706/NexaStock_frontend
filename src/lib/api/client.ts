@@ -18,6 +18,7 @@ export interface UserProfile {
 
 // Local storage keys
 const TOKEN_KEY = "nexastock_token";
+const REFRESH_TOKEN_KEY = "nexastock_refresh_token";
 const PROFILE_KEY = "nexastock_profile";
 const TENANT_KEY = "nexastock_tenant_id";
 
@@ -29,6 +30,15 @@ export const authState = {
   setToken(token: string) {
     if (typeof window !== "undefined") {
       localStorage.setItem(TOKEN_KEY, token);
+    }
+  },
+  getRefreshToken(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+  },
+  setRefreshToken(token: string) {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(REFRESH_TOKEN_KEY, token);
     }
   },
   getProfile(): UserProfile | null {
@@ -54,6 +64,7 @@ export const authState = {
   logout() {
     if (typeof window !== "undefined") {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(PROFILE_KEY);
       localStorage.removeItem(TENANT_KEY);
     }
@@ -62,6 +73,37 @@ export const authState = {
     return this.getToken() !== null;
   }
 };
+
+let refreshPromise: Promise<{ token: string; refreshToken: string }> | null = null;
+
+async function doRefresh(): Promise<{ token: string; refreshToken: string }> {
+  if (!refreshPromise) {
+    const refreshToken = authState.getRefreshToken();
+    if (!refreshToken) {
+      throw new Error("No refresh token available");
+    }
+    const url = `${getApiUrl()}/auth/refresh`;
+    refreshPromise = fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant-id": authState.getTenantId()
+      },
+      body: JSON.stringify({ refreshToken })
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error("Refresh failed");
+        }
+        const data = await res.json();
+        return data.data;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
 
 async function apiRequest<T>(
   method: string,
@@ -92,6 +134,40 @@ async function apiRequest<T>(
     });
   } catch (err) {
     throw new Error("Network error occurred. Please check your internet connection and try again.");
+  }
+
+  if (!response.ok) {
+    if (response.status === 401 && !path.includes("/auth/refresh")) {
+      try {
+        const refreshResult = await doRefresh();
+        authState.setToken(refreshResult.token);
+        authState.setRefreshToken(refreshResult.refreshToken);
+
+        // Retry the original request
+        headers["Authorization"] = `Bearer ${refreshResult.token}`;
+        const retryResponse = await fetch(url, {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined
+        });
+
+        if (retryResponse.ok) {
+          if (retryResponse.status === 204) {
+            return undefined as unknown as T;
+          }
+          const resJson = await retryResponse.json();
+          return resJson.data as T;
+        }
+
+        response = retryResponse;
+      } catch (refreshErr) {
+        authState.logout();
+        if (typeof window !== "undefined") {
+          window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+        }
+        throw new Error("Session expired. Please sign in again.");
+      }
+    }
   }
 
   if (!response.ok) {
@@ -138,14 +214,31 @@ async function apiRequest<T>(
 // Client methods mapping directly to backend routes
 export const api = {
   // Auth
-  async login(email: string, password: string): Promise<{ token: string; user: UserProfile }> {
-    const result = await apiRequest<{ token: string; user: UserProfile }>("POST", "/auth/login", {
+  async login(email: string, password: string): Promise<{ token: string; refreshToken?: string; user: UserProfile }> {
+    const result = await apiRequest<{ token: string; refreshToken?: string; user: UserProfile }>("POST", "/auth/login", {
       email,
       password,
       tenantId: authState.getTenantId()
     });
     authState.setToken(result.token);
+    if (result.refreshToken) {
+      authState.setRefreshToken(result.refreshToken);
+    }
     authState.setProfile(result.user);
+    return result;
+  },
+
+  async googleLogin(credential: string): Promise<{ isNewUser?: boolean; email?: string; fullName?: string; googleId?: string; token?: string; refreshToken?: string; user?: UserProfile }> {
+    const result = await apiRequest<any>("POST", "/auth/google", { credential });
+    if (result.token) {
+      authState.setToken(result.token);
+    }
+    if (result.refreshToken) {
+      authState.setRefreshToken(result.refreshToken);
+    }
+    if (result.user) {
+      authState.setProfile(result.user);
+    }
     return result;
   },
 
@@ -154,6 +247,9 @@ export const api = {
     const result = await apiRequest<any>("POST", "/onboarding/start", payload);
     if (result.token) {
       authState.setToken(result.token);
+    }
+    if (result.refreshToken) {
+      authState.setRefreshToken(result.refreshToken);
     }
     if (result.user) {
       authState.setProfile(result.user);

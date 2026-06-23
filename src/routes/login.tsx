@@ -7,16 +7,31 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginInput } from "@/lib/schemas/auth";
 import { motion } from "motion/react";
-import { api } from "@/lib/api/client";
+import { api, authState } from "@/lib/api/client";
 import { toast } from "sonner";
+import { useEffect } from "react";
+import { GoogleLogin } from "@react-oauth/google";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in · NexaStock" }] }),
+  validateSearch: (search: Record<string, unknown>): { redirect?: string } => {
+    return {
+      redirect: search.redirect ? (search.redirect as string) : undefined,
+    };
+  },
   component: LoginPage,
 });
 
 function LoginPage() {
+  const { redirect = "/dashboard" } = Route.useSearch();
   const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (authState.isAuthenticated()) {
+      navigate({ to: redirect });
+    }
+  }, [navigate, redirect]);
+
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     mode: "onChange",
@@ -32,9 +47,30 @@ function LoginPage() {
     try {
       await api.login(data.email, data.password);
       toast.success("Signed in successfully. Welcome back!");
-      navigate({ to: "/dashboard" });
+      navigate({ to: redirect });
     } catch (error: any) {
       toast.error(error.message || "Invalid email or password");
+    }
+  };
+
+  const handleGoogleSuccess = async (credential: string) => {
+    try {
+      const res = await api.googleLogin(credential);
+      if (res.isNewUser) {
+        // Save Google details to sessionStorage and redirect to onboarding
+        sessionStorage.setItem("nexastock_google_signup", JSON.stringify({
+          email: res.email,
+          fullName: res.fullName,
+          googleId: res.googleId
+        }));
+        toast.info("Google verification successful. Please complete organization onboarding.");
+        navigate({ to: "/onboarding" });
+      } else {
+        toast.success("Signed in successfully via Google!");
+        navigate({ to: redirect });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed Google Sign-In");
     }
   };
 
@@ -99,7 +135,7 @@ function LoginPage() {
               
               <Button 
                 type="submit" 
-                className="w-full h-11 bg-linear-to-b from-primary to-[oklch(0.52_0.22_268)] shadow-glow-sm cursor-pointer"
+                className="w-full h-11 bg-linear-to-b from-primary to-[oklch(0.52_0.22_268)] shadow-glow-sm cursor-pointer font-medium"
                 disabled={!isValid || isSubmitting}
               >
                 {isSubmitting ? "Signing in..." : "Sign in"}
@@ -108,9 +144,21 @@ function LoginPage() {
               <div className="flex items-center gap-3 text-xs text-muted-foreground my-3">
                 <div className="h-px flex-1 bg-white/10"/> or continue with <div className="h-px flex-1 bg-white/10"/>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Button type="button" variant="outline" className="h-11 bg-white/2 border-white/10 hover:bg-white/5 cursor-pointer">Google</Button>
-                <Button type="button" variant="outline" className="h-11 bg-white/2 border-white/10 hover:bg-white/5 cursor-pointer">Microsoft</Button>
+              
+              <div className="flex justify-center w-full">
+                <GoogleLogin
+                  onSuccess={(res) => {
+                    if (res.credential) {
+                      handleGoogleSuccess(res.credential);
+                    }
+                  }}
+                  onError={() => {
+                    toast.error("Google Sign-In failed");
+                  }}
+                  theme="filled_black"
+                  shape="pill"
+                  width="384px"
+                />
               </div>
             </form>
           </Form>
