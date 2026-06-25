@@ -300,7 +300,12 @@ function POSPage() {
     const defaultProduct = catalog.find(p => p.sku === "MED-PARA-500") || catalog[0];
     if (aiInsights?.recommendations?.length > 0) {
       for (const rec of aiInsights.recommendations) {
-        const match = catalog.find(p => rec.toLowerCase().includes(p.name.toLowerCase()) || rec.toLowerCase().includes(p.sku.toLowerCase()));
+        const recText = typeof rec === "string" ? rec : (rec?.title || rec?.body || rec?.description || "");
+        const recTextLower = recText.toLowerCase();
+        const match = catalog.find(p => 
+          recTextLower.includes(p.name.toLowerCase()) || 
+          recTextLower.includes(p.sku.toLowerCase())
+        );
         if (match) return match;
       }
     }
