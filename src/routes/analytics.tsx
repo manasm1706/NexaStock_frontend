@@ -10,6 +10,8 @@ import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 
+import { hasModulePermission } from "@/components/app/DashboardLayout";
+
 export const Route = createFileRoute("/analytics")({
   head: () => ({ meta: [{ title: "Analytics · NexaStock" }] }),
   beforeLoad: ({ location }) => {
@@ -20,6 +22,14 @@ export const Route = createFileRoute("/analytics")({
           redirect: location.href,
         },
       });
+    }
+
+    const profile = authState.getProfile();
+    const role = profile?.role || "";
+    const permissions = profile?.effectivePermissions || [];
+
+    if (!hasModulePermission("analytics", role, permissions)) {
+      throw redirect({ to: "/dashboard" });
     }
   },
   component: AnalyticsPage,

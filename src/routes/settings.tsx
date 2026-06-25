@@ -5,7 +5,8 @@ import { GlassCard } from "@/components/ui/card/GlassCard";
 import { SectionTitle } from "@/components/ui/typography";
 import {
   Building2, Users, Shield, Bell, KeyRound, CreditCard, Loader2,
-  Lock, Key, Laptop, Info, Plus, Check, Trash2, UserX, UserCheck, RefreshCw, XCircle, LayoutGrid, GripVertical, Star, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw
+  Lock, Key, Laptop, Info, Plus, Check, Trash2, UserX, UserCheck, RefreshCw, XCircle, LayoutGrid, GripVertical, Star, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw,
+  MapPin, ShieldAlert, Copy
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, authState } from "@/lib/api/client";
@@ -23,6 +24,14 @@ export const Route = createFileRoute("/settings")({
           redirect: location.href,
         },
       });
+    }
+
+    const profile = authState.getProfile();
+    const role = profile?.role || "";
+    const permissions = profile?.effectivePermissions || [];
+
+    if (!hasModulePermission("settings", role, permissions)) {
+      throw redirect({ to: "/dashboard" });
     }
   },
   component: SettingsPage,
@@ -58,6 +67,13 @@ function SettingsPage() {
     enabled: activeTab === "team"
   });
 
+  // Locations list
+  const { data: locations = [], isLoading: loadingLocations } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => api.getLocations(),
+    enabled: activeTab === "team"
+  });
+
   // 4. Audit Trail logs
   const { data: auditLogs = [], isLoading: loadingAudits } = useQuery({
     queryKey: ["audit-logs"],
@@ -86,7 +102,7 @@ function SettingsPage() {
     enabled: activeTab === "notifications"
   });
 
-  const isLoading = loadingTenant || (activeTab === "team" && (loadingTeam || loadingRoles));
+  const isLoading = loadingTenant || (activeTab === "team" && (loadingTeam || loadingRoles || loadingLocations));
 
   // ==========================================
   // Form States
@@ -109,6 +125,42 @@ function SettingsPage() {
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleDesc, setNewRoleDesc] = useState("");
   const [creatingRole, setCreatingRole] = useState(false);
+
+  // Modal states for Branch Transfer & Permission Overrides
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+
+  // States for Branch Modal Form
+  const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([]);
+  const [savingLocations, setSavingLocations] = useState(false);
+  const [branchSearch, setBranchSearch] = useState("");
+
+  // States for Override Modal Form
+  const [selectedOverrides, setSelectedOverrides] = useState<Record<string, "INHERIT" | "ALLOW" | "DENY">>({});
+  const [savingOverrides, setSavingOverrides] = useState(false);
+
+  // Cloned role dialog
+  const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
+  const [cloneRoleName, setCloneRoleName] = useState("");
+  const [cloneRoleDesc, setCloneRoleDesc] = useState("");
+  const [cloningRole, setCloningRole] = useState(false);
+
+  // Master system permissions definition
+  const masterPermissionList = useMemo(() => {
+    return [
+      { code: "PRODUCT_MANAGEMENT", name: "Product Catalog Management" },
+      { code: "INVENTORY_READ", name: "Read Inventory Levels" },
+      { code: "INVENTORY_WRITE", name: "Modify Inventory & Adjustments" },
+      { code: "POS_SALES", name: "Process Point of Sale Checkout" },
+      { code: "ANALYTICS_READ", name: "Read Store Analytics & Metrics" },
+      { code: "AI_READ", name: "Read AI Center Recommendations" },
+      { code: "SETTINGS_MANAGE", name: "Manage System Settings & Policies" },
+      { code: "USER_MANAGEMENT", name: "Manage Team Members & Invites" },
+      { code: "TENANT_ADMIN", name: "Full Organization Control" },
+      { code: "AUDIT_READ", name: "Read Security Compliance Logs" }
+    ];
+  }, []);
 
   // Permission Matrix Selected Role
   const [selectedRoleId, setSelectedRoleId] = useState("");
@@ -281,6 +333,107 @@ function SettingsPage() {
       setCreatingRole(false);
     }
   };
+
+  // Branch Transfer, Permission Overrides, and Role Cloning handlers
+  const openBranchModal = (user: any) => {
+    setSelectedUser(user);
+    setSelectedLocationIds((user.assignedLocations || []).map((al: any) => al.locationId));
+    setBranchSearch("");
+    setIsBranchModalOpen(true);
+  };
+
+  const handleSaveLocations = async () => {
+    if (!selectedUser) return;
+    setSavingLocations(true);
+    try {
+      await api.updateUserLocations(selectedUser.id, selectedLocationIds);
+      queryClient.invalidateQueries({ queryKey: ["team-users"] });
+      toast.success("User branch assignments updated successfully.");
+      setIsBranchModalOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update branch assignments");
+    } finally {
+      setSavingLocations(false);
+    }
+  };
+
+  const openOverrideModal = (user: any) => {
+    setSelectedUser(user);
+    const initialOverrides: Record<string, "INHERIT" | "ALLOW" | "DENY"> = {};
+    
+    // Set default as INHERIT
+    masterPermissionList.forEach((p) => {
+      initialOverrides[p.code] = "INHERIT";
+    });
+
+    // Populate current overrides
+    (user.permissionOverrides || []).forEach((ov: any) => {
+      if (ov.permissionCode) {
+        initialOverrides[ov.permissionCode] = ov.allowed ? "ALLOW" : "DENY";
+      }
+    });
+
+    setSelectedOverrides(initialOverrides);
+    setIsOverrideModalOpen(true);
+  };
+
+  const handleSaveOverrides = async () => {
+    if (!selectedUser) return;
+    setSavingOverrides(true);
+    try {
+      const userRoleId = roles.find((r: any) => r.code === selectedUser.role)?.id;
+      if (!userRoleId) {
+        throw new Error("Unable to resolve user's role ID");
+      }
+      
+      const allPerms = await api.getRolePermissions(userRoleId);
+      const overridesToSave: Array<{ permissionId: string; allowed: boolean }> = [];
+      
+      for (const [code, val] of Object.entries(selectedOverrides)) {
+        if (val !== "INHERIT") {
+          const perm = allPerms.find((p: any) => p.code === code);
+          if (perm) {
+            overridesToSave.push({
+              permissionId: perm.permissionId,
+              allowed: val === "ALLOW"
+            });
+          }
+        }
+      }
+
+      await api.updateUserPermissions(selectedUser.id, overridesToSave);
+      queryClient.invalidateQueries({ queryKey: ["team-users"] });
+      toast.success("User permission overrides updated successfully.");
+      setIsOverrideModalOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update permission overrides");
+    } finally {
+      setSavingOverrides(false);
+    }
+  };
+
+  const handleCloneRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRoleId) return;
+    if (!cloneRoleName.trim()) {
+      toast.error("Role name is required.");
+      return;
+    }
+    setCloningRole(true);
+    try {
+      await api.cloneRole(selectedRoleId, cloneRoleName, cloneRoleDesc || "");
+      setCloneRoleName("");
+      setCloneRoleDesc("");
+      setIsCloneModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      toast.success("Role cloned successfully.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to clone role");
+    } finally {
+      setCloningRole(false);
+    }
+  };
+
 
   // Toggle Permission Matrix Cell
   const handlePermissionToggle = async (permCode: string, currentlyAllowed: boolean) => {
@@ -539,6 +692,7 @@ function SettingsPage() {
                       <tr className="border-b border-white/10 text-muted-foreground font-semibold">
                         <th className="py-2">Team Member</th>
                         <th className="py-2">Role</th>
+                        <th className="py-2">Assigned Branches</th>
                         <th className="py-2">Status</th>
                         <th className="py-2">Last Login</th>
                         {isOwner && <th className="py-2 text-right">Actions</th>}
@@ -552,7 +706,7 @@ function SettingsPage() {
                             <div className="text-[10px] text-muted-foreground font-mono">{m.email}</div>
                           </td>
                           <td className="py-2.5">
-                            {isOwner && m.id !== localProfile?.id ? (
+                            {isOwner && m.id !== localProfile?.id && m.status !== "invited" ? (
                               <select
                                 value={roles.find((r: any) => r.code === m.role)?.id || ""}
                                 onChange={(e) => handleUserRoleChange(m.id, e.target.value)}
@@ -564,6 +718,28 @@ function SettingsPage() {
                               </select>
                             ) : (
                               <span className="font-medium text-foreground">{m.roleLabel || m.role}</span>
+                            )}
+                          </td>
+                          <td className="py-2.5">
+                            {["business_owner", "super_admin", "operations_manager"].includes(m.role) ? (
+                              <span className="text-[10px] text-muted-foreground bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-md font-semibold uppercase">
+                                All Branches (Global)
+                              </span>
+                            ) : !m.assignedLocations || m.assignedLocations.length === 0 ? (
+                              <span className="text-[10px] text-destructive bg-destructive/5 border border-destructive/15 px-1.5 py-0.5 rounded-md font-semibold uppercase">
+                                Restricted (None)
+                              </span>
+                            ) : (
+                              <div className="flex flex-wrap gap-1">
+                                {m.assignedLocations.map((al: any) => {
+                                  const locName = locations.find((l: any) => l.id === al.locationId)?.name || "Store";
+                                  return (
+                                    <span key={al.locationId} className="text-[10px] text-primary bg-primary/5 border border-primary/15 px-1.5 py-0.5 rounded-md font-semibold">
+                                      {locName}
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             )}
                           </td>
                           <td className="py-2.5">
@@ -588,10 +764,18 @@ function SettingsPage() {
                                     </>
                                   )}
                                   {m.status === "active" && (
-                                    <button onClick={() => handleDeactivateUser(m.id)} title="Deactivate" className="p-1 rounded hover:bg-white/10 text-warning inline-flex"><UserX className="w-3.5 h-3.5" /></button>
+                                    <>
+                                      <button onClick={() => openBranchModal(m)} title="Transfer Branch" className="p-1 rounded hover:bg-white/10 text-primary inline-flex"><MapPin className="w-3.5 h-3.5" /></button>
+                                      <button onClick={() => openOverrideModal(m)} title="Override Permissions" className="p-1 rounded hover:bg-white/10 text-success inline-flex"><ShieldAlert className="w-3.5 h-3.5" /></button>
+                                      <button onClick={() => handleDeactivateUser(m.id)} title="Deactivate" className="p-1 rounded hover:bg-white/10 text-warning inline-flex"><UserX className="w-3.5 h-3.5" /></button>
+                                    </>
                                   )}
                                   {m.status === "disabled" && (
-                                    <button onClick={() => handleReactivateUser(m.id)} title="Reactivate" className="p-1 rounded hover:bg-white/10 text-success inline-flex"><UserCheck className="w-3.5 h-3.5" /></button>
+                                    <>
+                                      <button onClick={() => openBranchModal(m)} title="Transfer Branch" className="p-1 rounded hover:bg-white/10 text-primary inline-flex"><MapPin className="w-3.5 h-3.5" /></button>
+                                      <button onClick={() => openOverrideModal(m)} title="Override Permissions" className="p-1 rounded hover:bg-white/10 text-success inline-flex"><ShieldAlert className="w-3.5 h-3.5" /></button>
+                                      <button onClick={() => handleReactivateUser(m.id)} title="Reactivate" className="p-1 rounded hover:bg-white/10 text-success inline-flex"><UserCheck className="w-3.5 h-3.5" /></button>
+                                    </>
                                   )}
                                   <button onClick={() => handleRemoveUser(m.id)} title="Remove Permanently" className="p-1 rounded hover:bg-white/10 text-destructive inline-flex"><Trash2 className="w-3.5 h-3.5" /></button>
                                 </>
@@ -640,18 +824,35 @@ function SettingsPage() {
                   {/* Permission Matrix */}
                   <GlassCard className="lg:col-span-2 p-5 space-y-4">
                     <SectionTitle>Permission Matrix Editor</SectionTitle>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-muted-foreground">Select Role:</span>
-                      <select
-                        value={selectedRoleId}
-                        onChange={(e) => setSelectedRoleId(e.target.value)}
-                        className="h-8 rounded-lg border border-white/10 bg-black/20 text-xs px-2 outline-none"
-                      >
-                        <option value="">Select a role to configure...</option>
-                        {roles.map((r: any) => (
-                          <option key={r.id} value={r.id}>{r.name} {r.isSystem ? "(System)" : ""}</option>
-                        ))}
-                      </select>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground">Select Role:</span>
+                        <select
+                          value={selectedRoleId}
+                          onChange={(e) => setSelectedRoleId(e.target.value)}
+                          className="h-8 rounded-lg border border-white/10 bg-black/20 text-xs px-2 outline-none"
+                        >
+                          <option value="">Select a role to configure...</option>
+                          {roles.map((r: any) => (
+                            <option key={r.id} value={r.id}>{r.name} {r.isSystem ? "(System)" : ""}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {selectedRoleId && (
+                        <Button 
+                          onClick={() => {
+                            const r = roles.find((role: any) => role.id === selectedRoleId);
+                            setCloneRoleName(r ? `Copy of ${r.name}` : "");
+                            setCloneRoleDesc(r ? r.description || "" : "");
+                            setIsCloneModalOpen(true);
+                          }}
+                          variant="outline" 
+                          className="h-8 text-xs flex items-center gap-1 border-white/10 bg-white/3 hover:bg-white/10 text-foreground cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" /> Clone Role
+                        </Button>
+                      )}
                     </div>
 
                     {selectedRoleId ? (
@@ -928,6 +1129,224 @@ function SettingsPage() {
 
         </div>
       </div>
+
+      {/* Branch Assignment Modal */}
+      {isBranchModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <GlassCard className="max-w-md w-full p-6 space-y-4 border-white/10 shadow-premium relative">
+            <h3 className="text-sm font-semibold text-foreground">Transfer Branch Assignment</h3>
+            <p className="text-xs text-muted-foreground">
+              Update assigned branches for <span className="font-semibold text-foreground">{selectedUser.fullName}</span>.
+              Pune is the default backend scope.
+            </p>
+
+            {/* Local Search Filter */}
+            <input
+              type="text"
+              value={branchSearch}
+              onChange={(e) => setBranchSearch(e.target.value)}
+              placeholder="Search branches by name, code or city..."
+              className="w-full text-xs bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/50 transition"
+            />
+
+            {/* Bulk Selection Triggers */}
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                onClick={() => setSelectedLocationIds(locations.map((l: any) => l.id))}
+                className="text-[9px] bg-white/5 hover:bg-white/10 border border-white/10 rounded px-2 py-1 text-foreground transition-all"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedLocationIds(locations.filter((l: any) => l.type === "store").map((l: any) => l.id))}
+                className="text-[9px] bg-white/5 hover:bg-white/10 border border-white/10 rounded px-2 py-1 text-foreground transition-all"
+              >
+                All Stores
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedLocationIds(locations.filter((l: any) => l.type === "warehouse").map((l: any) => l.id))}
+                className="text-[9px] bg-white/5 hover:bg-white/10 border border-white/10 rounded px-2 py-1 text-foreground transition-all"
+              >
+                All Warehouses
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedLocationIds([])}
+                className="text-[9px] bg-white/5 hover:bg-white/10 border border-white/10 rounded px-2 py-1 text-muted-foreground hover:text-foreground transition-all"
+              >
+                Deselect All
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-48 overflow-y-auto border border-white/5 rounded-xl p-2 bg-black/20">
+              {(() => {
+                const filteredLocations = locations.filter((loc: any) =>
+                  loc.name.toLowerCase().includes(branchSearch.toLowerCase()) ||
+                  loc.code.toLowerCase().includes(branchSearch.toLowerCase()) ||
+                  loc.city.toLowerCase().includes(branchSearch.toLowerCase())
+                );
+
+                if (filteredLocations.length === 0) {
+                  return (
+                    <div className="text-center py-6 text-xs text-muted-foreground">
+                      No branches match your search.
+                    </div>
+                  );
+                }
+
+                return filteredLocations.map((loc: any) => {
+                  const isChecked = selectedLocationIds.includes(loc.id);
+                  return (
+                    <label key={loc.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/3 text-xs text-foreground cursor-pointer justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setSelectedLocationIds(selectedLocationIds.filter(id => id !== loc.id));
+                            } else {
+                              setSelectedLocationIds([...selectedLocationIds, loc.id]);
+                            }
+                          }}
+                          className="rounded border-white/10 bg-white/2 text-primary focus:ring-primary h-3.5 w-3.5"
+                        />
+                        <div>
+                          <div className="font-medium">{loc.name}</div>
+                          <div className="text-[10px] text-muted-foreground font-mono uppercase">{loc.code} · {loc.city}</div>
+                        </div>
+                      </div>
+                      <div>
+                        {loc.type === "warehouse" ? (
+                          <span className="text-[9px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded font-medium">
+                            🏭 Warehouse
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded font-medium">
+                            🏬 Store
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  );
+                });
+              })()}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setIsBranchModalOpen(false)} className="text-xs h-8">
+                Cancel
+              </Button>
+              <Button variant="premiumGradient" size="sm" onClick={handleSaveLocations} disabled={savingLocations} className="text-xs h-8">
+                {savingLocations ? <Loader2 className="w-3 animate-spin" /> : "Save Changes"}
+              </Button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
+      {/* Permission Overrides Modal */}
+      {isOverrideModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <GlassCard className="max-w-lg w-full p-6 space-y-4 border-white/10 shadow-premium relative">
+            <h3 className="text-sm font-semibold text-foreground">Granular Permission Overrides</h3>
+            <p className="text-xs text-muted-foreground font-sans">
+              Configure custom overrides for <span className="font-semibold text-foreground">{selectedUser.fullName}</span>. 
+              Allows you to explicitly grant or deny actions regardless of their role.
+            </p>
+
+            <div className="space-y-1 max-h-64 overflow-y-auto border border-white/5 rounded-xl p-2 bg-black/20 divide-y divide-white/5 pr-1">
+              {masterPermissionList.map((perm) => {
+                const currentVal = selectedOverrides[perm.code] || "INHERIT";
+                return (
+                  <div key={perm.code} className="flex items-center justify-between p-2.5 text-xs text-foreground">
+                    <div>
+                      <div className="font-semibold">{perm.name}</div>
+                      <div className="text-[9px] text-muted-foreground font-mono">{perm.code}</div>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {["INHERIT", "ALLOW", "DENY"].map((status) => {
+                        const active = currentVal === status;
+                        return (
+                          <button
+                            key={status}
+                            type="button"
+                            onClick={() => setSelectedOverrides({ ...selectedOverrides, [perm.code]: status as any })}
+                            className={`px-2 py-1 rounded text-[9px] font-semibold border transition-all ${
+                              active 
+                                ? status === "ALLOW" ? "bg-success/15 text-success border-success/25 font-bold"
+                                  : status === "DENY" ? "bg-destructive/15 text-destructive border-destructive/25 font-bold"
+                                  : "bg-primary/10 text-primary border-primary/20 font-bold"
+                                : "bg-white/2 text-muted-foreground border-transparent hover:bg-white/5"
+                            }`}
+                          >
+                            {status}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setIsOverrideModalOpen(false)} className="text-xs h-8">
+                Cancel
+              </Button>
+              <Button variant="premiumGradient" size="sm" onClick={handleSaveOverrides} disabled={savingOverrides} className="text-xs h-8">
+                {savingOverrides ? <Loader2 className="w-3 animate-spin" /> : "Save Overrides"}
+              </Button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
+      {/* Role Clone Modal */}
+      {isCloneModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <GlassCard className="max-w-md w-full p-6 space-y-4 border-white/10 shadow-premium relative animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-sm font-semibold text-foreground">Duplicate / Clone Custom Role</h3>
+            <p className="text-xs text-muted-foreground">
+              Create a new role with the exact same permission matrix template as the selected role.
+            </p>
+
+            <form onSubmit={handleCloneRole} className="space-y-3">
+              <div>
+                <label className="text-[10px] text-muted-foreground font-semibold">New Role Name</label>
+                <input
+                  value={cloneRoleName}
+                  onChange={(e) => setCloneRoleName(e.target.value)}
+                  placeholder="e.g. Senior Procurement Lead"
+                  className="mt-1 h-9 w-full rounded-xl border border-white/10 bg-white/2 px-3 text-xs text-foreground outline-none focus:border-primary"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground font-semibold">New Description</label>
+                <textarea
+                  value={cloneRoleDesc}
+                  onChange={(e) => setCloneRoleDesc(e.target.value)}
+                  placeholder="Describe the scope of this cloned role..."
+                  rows={2}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/2 p-2 text-xs text-foreground outline-none focus:border-primary font-sans resize-none"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsCloneModalOpen(false)} className="text-xs h-8">
+                  Cancel
+                </Button>
+                <Button type="submit" variant="premiumGradient" size="sm" disabled={cloningRole} className="text-xs h-8">
+                  {cloningRole ? <Loader2 className="w-3 animate-spin" /> : "Clone Role"}
+                </Button>
+              </div>
+            </form>
+          </GlassCard>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

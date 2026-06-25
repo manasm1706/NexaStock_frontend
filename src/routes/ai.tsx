@@ -10,6 +10,8 @@ import { api, authState } from "@/lib/api/client";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
+import { hasModulePermission } from "@/components/app/DashboardLayout";
+
 export const Route = createFileRoute("/ai")({
   head: () => ({ meta: [{ title: "AI Center · NexaStock" }] }),
   beforeLoad: ({ location }) => {
@@ -20,6 +22,14 @@ export const Route = createFileRoute("/ai")({
           redirect: location.href,
         },
       });
+    }
+
+    const profile = authState.getProfile();
+    const role = profile?.role || "";
+    const permissions = profile?.effectivePermissions || [];
+
+    if (!hasModulePermission("ai", role, permissions)) {
+      throw redirect({ to: "/dashboard" });
     }
   },
   component: AIPage,

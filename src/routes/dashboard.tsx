@@ -12,6 +12,8 @@ import { api, authState } from "@/lib/api/client";
 import { useState, useEffect, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { MODULE_REGISTRY, hasModulePermission } from "@/components/app/DashboardLayout";
+
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · NexaStock" }] }),
   beforeLoad: ({ location }) => {
@@ -22,6 +24,20 @@ export const Route = createFileRoute("/dashboard")({
           redirect: location.href,
         },
       });
+    }
+
+    const profile = authState.getProfile();
+    const role = profile?.role || "";
+    const permissions = profile?.effectivePermissions || [];
+
+    if (!hasModulePermission("dashboard", role, permissions)) {
+      if (role === "cashier" || permissions.includes("POS_SALES")) {
+        throw redirect({ to: "/pos" });
+      }
+      if (permissions.includes("SETTINGS_MANAGE") || permissions.includes("USER_MANAGEMENT")) {
+        throw redirect({ to: "/settings" });
+      }
+      throw redirect({ to: "/login" });
     }
   },
   component: DashboardPage,
@@ -66,10 +82,45 @@ function getWidgetSizeClass(size: "sm" | "md" | "lg") {
   return "col-span-1 md:col-span-2 lg:col-span-4";
 }
 
+const WIDGET_PERMISSIONS: Record<string, string[]> = {
+  revenue: ["ANALYTICS_READ", "POS_SALES"],
+  stores: ["WAREHOUSE_MANAGEMENT", "INVENTORY_READ"],
+  inventoryValue: ["INVENTORY_READ", "INVENTORY_WRITE"],
+  lowStock: ["INVENTORY_READ", "INVENTORY_WRITE"],
+  forecastChart: ["ANALYTICS_READ"],
+  aiInsights: ["AI_READ"],
+  topProducts: ["ANALYTICS_READ", "POS_SALES"],
+  alerts: ["SETTINGS_MANAGE", "AUDIT_READ", "USER_MANAGEMENT"]
+};
+
+function hasWidgetPermission(widgetId: string, effectivePermissions?: string[], role?: string): boolean {
+  if (effectivePermissions && Array.isArray(effectivePermissions)) {
+    const required = WIDGET_PERMISSIONS[widgetId];
+    if (!required) return true;
+    return required.some(p => effectivePermissions.includes(p));
+  }
+  if (role === "super_admin" || role === "business_owner" || role === "operations_manager") return true;
+  if (widgetId === "lowStock" || widgetId === "inventoryValue") {
+    return role === "warehouse_manager" || role === "store_manager" || role === "cashier";
+  }
+  if (widgetId === "stores") {
+    return role === "warehouse_manager" || role === "store_manager";
+  }
+  if (widgetId === "pos" || widgetId === "revenue") {
+    return role === "cashier" || role === "store_manager";
+  }
+  if (widgetId === "forecastChart" || widgetId === "aiInsights" || widgetId === "topProducts") {
+    return role === "store_manager" || role === "warehouse_manager";
+  }
+  return true;
+}
+
 function DashboardPage() {
   const queryClient = useQueryClient();
   const profile = authState.getProfile();
   const userName = profile?.fullName ? profile.fullName.split(" ")[0] : "Jane";
+  const userRole = profile?.role || "";
+  const effectivePermissions = profile?.effectivePermissions;
 
   // State
   const [isEditing, setIsEditing] = useState(false);
@@ -325,8 +376,9 @@ function DashboardPage() {
     });
   };
 
-  const hiddenWidgets = currentLayout.widgets.filter(w => !w.visible);
-  const visibleWidgets = currentLayout.widgets.filter(w => w.visible);
+  const allowedWidgets = currentLayout.widgets.filter(w => hasWidgetPermission(w.id, effectivePermissions, userRole));
+  const hiddenWidgets = allowedWidgets.filter(w => !w.visible);
+  const visibleWidgets = allowedWidgets.filter(w => w.visible);
 
   return (
     <DashboardLayout
@@ -414,6 +466,7 @@ function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {currentLayout.widgets.map((widget, index) => {
           if (!widget.visible) return null;
+          if (!hasWidgetPermission(widget.id, effectivePermissions, userRole)) return null;
           const sizeClass = getWidgetSizeClass(widget.size);
 
           return (

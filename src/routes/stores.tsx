@@ -21,6 +21,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { hasModulePermission } from "@/components/app/DashboardLayout";
+
 export const Route = createFileRoute("/stores")({
   head: () => ({ meta: [{ title: "Stores · NexaStock" }] }),
   beforeLoad: ({ location }) => {
@@ -31,6 +33,14 @@ export const Route = createFileRoute("/stores")({
           redirect: location.href,
         },
       });
+    }
+
+    const profile = authState.getProfile();
+    const role = profile?.role || "";
+    const permissions = profile?.effectivePermissions || [];
+
+    if (!hasModulePermission("stores", role, permissions)) {
+      throw redirect({ to: "/dashboard" });
     }
   },
   component: StoresPage,

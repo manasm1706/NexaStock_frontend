@@ -6,13 +6,14 @@ import {
   LayoutDashboard, Boxes, Brain, Store, BarChart3, Settings,
   ScanLine, Sparkles, Search, Bell, Edit, Eye, EyeOff, Star, GripVertical, ChevronUp, ChevronDown, Lock, RotateCcw
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { api, authState } from "@/lib/api/client";
 import { ProfileSettingsModal } from "./ProfileSettingsModal";
 import { getBusinessType } from "@/lib/constants";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 // Static mapping of modules
 export const MODULE_REGISTRY: Record<string, { to: string; icon: any; label: string }> = {
@@ -26,18 +27,58 @@ export const MODULE_REGISTRY: Record<string, { to: string; icon: any; label: str
 };
 
 // Check if a role is permitted to see a module
-export function hasModulePermission(moduleId: string, role: string): boolean {
+export function hasModulePermission(moduleId: string, role: string, effectivePermissions?: string[]): boolean {
+  // Super admins and business owners always have full access
   if (role === "super_admin" || role === "business_owner") return true;
-  if (moduleId === "dashboard" || moduleId === "settings") return true;
-  
-  if (role === "operations_manager" || role === "store_manager") {
-    return true;
+
+  if (effectivePermissions && Array.isArray(effectivePermissions)) {
+    if (moduleId === "dashboard") {
+      // Cashiers (only POS permissions) should not access dashboard overview
+      if (
+        (role === "cashier" || effectivePermissions.includes("POS_SALES")) &&
+        !effectivePermissions.includes("ANALYTICS_READ") &&
+        !effectivePermissions.includes("INVENTORY_READ")
+      ) {
+        return false;
+      }
+      return true;
+    }
+    if (moduleId === "settings") {
+      return (
+        effectivePermissions.includes("SETTINGS_MANAGE") ||
+        effectivePermissions.includes("USER_MANAGEMENT") ||
+        effectivePermissions.includes("TENANT_ADMIN")
+      );
+    }
+    if (moduleId === "inventory") {
+      return (
+        effectivePermissions.includes("INVENTORY_READ") ||
+        effectivePermissions.includes("INVENTORY_WRITE")
+      );
+    }
+    if (moduleId === "ai") return effectivePermissions.includes("AI_READ");
+    if (moduleId === "pos") return effectivePermissions.includes("POS_SALES");
+    if (moduleId === "analytics") return effectivePermissions.includes("ANALYTICS_READ");
+    if (moduleId === "stores") {
+      return (
+        effectivePermissions.includes("WAREHOUSE_MANAGEMENT") ||
+        effectivePermissions.includes("INVENTORY_READ")
+      );
+    }
   }
+
+  // Fallback to static role checking if permissions array is absent
   if (role === "cashier") {
-    return moduleId === "pos" || moduleId === "inventory";
+    return moduleId === "pos";
   }
   if (role === "warehouse_manager") {
     return moduleId === "inventory" || moduleId === "stores";
+  }
+  if (role === "store_manager") {
+    return moduleId === "dashboard" || moduleId === "inventory" || moduleId === "pos" || moduleId === "stores";
+  }
+  if (role === "operations_manager") {
+    return moduleId === "dashboard" || moduleId === "inventory" || moduleId === "ai" || moduleId === "stores" || moduleId === "pos" || moduleId === "analytics" || moduleId === "settings";
   }
   return false;
 }
@@ -67,6 +108,40 @@ export function DashboardLayout({
   const bizType = getBusinessType(tenantData?.tenant?.industry);
   const profile = authState.getProfile();
   const userRole = profile?.role || "";
+  const effectivePermissions = profile?.effectivePermissions;
+
+  // Search Palette State & Queries
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const { data: searchProducts = [] } = useQuery({
+    queryKey: ["search-products"],
+    queryFn: () => api.getProducts(),
+    enabled: isSearchOpen,
+  });
+
+  const { data: searchBalances = [] } = useQuery({
+    queryKey: ["search-balances"],
+    queryFn: () => api.getInventoryBalances(),
+    enabled: isSearchOpen,
+  });
+
+  const { data: searchLocations = [] } = useQuery({
+    queryKey: ["search-locations"],
+    queryFn: () => api.getLocations(),
+    enabled: isSearchOpen,
+  });
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const userInitials = profile?.fullName
     ? profile.fullName
@@ -126,7 +201,7 @@ export function DashboardLayout({
   };
 
   const isLocked = (modId: string) => {
-    return !hasModulePermission(modId, userRole);
+    return !hasModulePermission(modId, userRole, effectivePermissions);
   };
 
   // Up/down reordering accessibility fallback
@@ -189,7 +264,7 @@ export function DashboardLayout({
   };
 
   // Filter modules to display
-  const allowedSidebarOrder = sidebarOrder.filter((id: string) => hasModulePermission(id, userRole));
+  const allowedSidebarOrder = sidebarOrder.filter((id: string) => hasModulePermission(id, userRole, effectivePermissions));
   
   // Separate into favorites vs main modules lists
   const favItems = allowedSidebarOrder.filter((id: string) => sidebarFavorites.includes(id) && !sidebarHidden.includes(id));
@@ -384,12 +459,12 @@ export function DashboardLayout({
         <header className="sticky top-0 z-30 border-b border-white/5 bg-background/70 backdrop-blur-xl">
           <div className="flex items-center gap-4 px-6 py-3.5">
             <div className="md:hidden"><Logo /></div>
-            <div className="hidden md:flex items-center gap-2 glass rounded-xl px-3 py-2 w-full max-w-md">
+            <div 
+              onClick={() => setIsSearchOpen(true)}
+              className="hidden md:flex items-center gap-2 glass rounded-xl px-3 py-2 w-full max-w-md cursor-pointer hover:bg-white/5 transition-all"
+            >
               <Search className="w-4 h-4 text-muted-foreground" />
-              <input
-                className="bg-transparent outline-none text-sm flex-1 placeholder:text-muted-foreground"
-                placeholder="Search products, stores, SKUs…"
-              />
+              <span className="text-sm text-muted-foreground flex-1">Search products, stores, SKUs…</span>
               <kbd className="text-[10px] text-muted-foreground border border-white/10 rounded px-1.5 py-0.5">⌘K</kbd>
             </div>
             <div className="ml-auto flex items-center gap-2">
@@ -424,6 +499,113 @@ export function DashboardLayout({
           <ProfileSettingsModal onClose={() => setIsProfileOpen(false)} />
         )}
       </AnimatePresence>
+
+      {/* Global Command Search Palette */}
+      <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+        <DialogContent className="sm:max-w-[600px] glass border-white/10 bg-background/95 text-foreground p-0 overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/10">
+            <Search className="w-5 h-5 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Type product name, SKU or category..."
+              className="bg-transparent border-none outline-none text-sm flex-1 placeholder:text-muted-foreground text-foreground"
+              autoFocus
+            />
+            <kbd className="text-[10px] text-muted-foreground border border-white/10 rounded px-1.5 py-0.5">ESC</kbd>
+          </div>
+
+          <div className="max-h-[350px] overflow-y-auto p-2 space-y-1">
+            {(() => {
+              const allowedLocs = profile?.assignedLocations || [];
+              const isRestricted = !["super_admin", "business_owner", "operations_manager"].includes(userRole);
+
+              const filteredProducts = searchProducts.filter((product: any) => {
+                if (!searchQuery) return true;
+                const matchesText = 
+                  product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  product.category.toLowerCase().includes(searchQuery.toLowerCase());
+                
+                if (!matchesText) return false;
+
+                if (isRestricted) {
+                  // Show product if it has any balance entry (even 0 qty) in user's allowed locations
+                  return searchBalances.some(
+                    (b: any) => b.productId === product.id && allowedLocs.includes(b.locationId)
+                  );
+                }
+                return true;
+              });
+
+              if (filteredProducts.length === 0) {
+                return (
+                  <div className="text-center py-8 text-xs text-muted-foreground">
+                    No matching products found inside your scoped locations.
+                  </div>
+                );
+              }
+
+              return filteredProducts.slice(0, 10).map((product: any) => {
+                const productBalances = searchBalances.filter(
+                  (b: any) => b.productId === product.id && (!isRestricted || allowedLocs.includes(b.locationId))
+                );
+
+                return (
+                  <div
+                    key={product.id}
+                    className="p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 transition duration-150"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-sm text-foreground">{product.name}</div>
+                        <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                          SKU: {product.sku} | Category: {product.category}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono text-sm font-semibold text-primary">
+                          ${product.sellingPrice.toFixed(2)}
+                        </div>
+                        <div className="text-[9px] text-muted-foreground mt-0.5">
+                          Tax Rate: {product.taxRate}%
+                        </div>
+                      </div>
+                    </div>
+
+                    {productBalances.length > 0 ? (
+                      <div className="mt-2.5 flex flex-wrap gap-1.5">
+                        {productBalances.map((b: any) => {
+                          const loc = searchLocations.find((l: any) => l.id === b.locationId);
+                          if (!loc) return null;
+                          return (
+                            <span
+                              key={b.locationId}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] border ${
+                                b.quantity <= product.reorderLevel
+                                  ? "bg-warning/10 border-warning/30 text-warning"
+                                  : "bg-white/5 border-white/10 text-muted-foreground"
+                              }`}
+                            >
+                              <span>{loc.type === "warehouse" ? "🏭" : "🏬"} {loc.name}:</span>
+                              <strong className="font-mono">{b.quantity}</strong>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-[10px] text-destructive italic">
+                        No stock records in your assigned locations.
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -14,6 +14,8 @@ export interface UserProfile {
   role: string;
   roleLabel: string;
   tenantId: string;
+  effectivePermissions?: string[];
+  assignedLocations?: string[];
 }
 
 // Local storage keys
@@ -142,6 +144,24 @@ async function apiRequest<T>(
         const refreshResult = await doRefresh();
         authState.setToken(refreshResult.token);
         authState.setRefreshToken(refreshResult.refreshToken);
+
+        // Fetch profile to update permissions dynamically
+        try {
+          const profileRes = await fetch(`${getApiUrl()}/settings/profile`, {
+            headers: {
+              "Authorization": `Bearer ${refreshResult.token}`,
+              "x-tenant-id": authState.getTenantId()
+            }
+          });
+          if (profileRes.ok) {
+            const profileJson = await profileRes.json();
+            if (profileJson.data && profileJson.data.user) {
+              authState.setProfile(profileJson.data.user);
+            }
+          }
+        } catch (profileErr) {
+          console.error("Failed to sync profile on refresh:", profileErr);
+        }
 
         // Retry the original request
         headers["Authorization"] = `Bearer ${refreshResult.token}`;
@@ -515,6 +535,18 @@ export const api = {
 
   async saveRolePermissions(roleId: string, permissions: Array<{ code: string; allowed: boolean }>): Promise<any> {
     return apiRequest<any>("PUT", `/roles/${roleId}/permissions`, { permissions });
+  },
+
+  async updateUserLocations(userId: string, locationIds: string[]): Promise<any> {
+    return apiRequest<any>("PUT", `/users/${userId}/locations`, { locationIds });
+  },
+
+  async updateUserPermissions(userId: string, overrides: Array<{ permissionId: string; allowed: boolean }>): Promise<any> {
+    return apiRequest<any>("PUT", `/users/${userId}/permissions`, { overrides });
+  },
+
+  async cloneRole(roleId: string, name?: string, description?: string): Promise<any> {
+    return apiRequest<any>("POST", `/roles/${roleId}/clone`, { name, description });
   },
 
   // Organization settings
