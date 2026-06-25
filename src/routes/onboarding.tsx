@@ -413,7 +413,7 @@ function OnboardingPage() {
           </ol>
         </aside>
 
-        <main className="p-6 lg:p-12 max-w-3xl overflow-y-auto">
+        <main className={cn("p-6 lg:p-12 overflow-y-auto transition-all duration-300 w-full flex-1", (step === 1 || step === 2) ? "max-w-6xl" : "max-w-3xl")}>
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -671,9 +671,10 @@ interface InventoryImportDropzoneProps {
   setPreview: (v: any) => void;
   confirmed: boolean;
   setConfirmed: (v: boolean) => void;
+  isLarge?: boolean;
 }
 
-function InventoryImportDropzone({ inventory, setInventory, preview, setPreview, confirmed, setConfirmed }: InventoryImportDropzoneProps) {
+function InventoryImportDropzone({ inventory, setInventory, preview, setPreview, confirmed, setConfirmed, isLarge }: InventoryImportDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -836,9 +837,9 @@ function InventoryImportDropzone({ inventory, setInventory, preview, setPreview,
   };
 
   return (
-    <div className="border border-dashed border-white/10 rounded-xl p-4 bg-white/1 space-y-3">
+    <div className={cn("border border-dashed border-white/10 rounded-xl bg-white/1 transition-all", isLarge ? "p-6 space-y-4" : "p-4 space-y-3")}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Initial Inventory (Optional)</span>
+        <span className={cn("uppercase tracking-wider text-muted-foreground font-semibold", isLarge ? "text-xs" : "text-[10px]")}>Initial Inventory (Optional)</span>
         <div className="flex items-center gap-2 text-[10px]">
           <button type="button" onClick={downloadCSVTemplate} className="text-primary hover:underline flex items-center gap-0.5 cursor-pointer">
             <Download className="w-2.5 h-2.5" /> CSV Template
@@ -856,7 +857,8 @@ function InventoryImportDropzone({ inventory, setInventory, preview, setPreview,
         onDrop={handleDrop}
         onClick={triggerSelect}
         className={cn(
-          "border border-dashed rounded-lg p-4 text-center cursor-pointer transition-all",
+          "border border-dashed rounded-lg text-center cursor-pointer transition-all",
+          isLarge ? "p-8 lg:p-14" : "p-4",
           isDragging ? "border-primary bg-primary/5" : "border-white/10 bg-white/2 hover:bg-white/4"
         )}
       >
@@ -867,11 +869,11 @@ function InventoryImportDropzone({ inventory, setInventory, preview, setPreview,
           onChange={handleFileChange}
           className="hidden"
         />
-        <Upload className="w-5 h-5 mx-auto text-muted-foreground" />
-        <p className="text-xs text-foreground mt-1.5 font-medium">
+        <Upload className={cn("mx-auto text-muted-foreground transition-all duration-300", isLarge ? "w-8 h-8 mb-2" : "w-5 h-5")} />
+        <p className={cn("text-foreground font-medium", isLarge ? "text-sm" : "text-xs")}>
           {preview?.filename ? preview.filename : "Drag & drop CSV/XLSX or click to browse"}
         </p>
-        <p className="text-[9px] text-muted-foreground mt-0.5">Formats supported: .csv, .xlsx (max size: 5MB)</p>
+        <p className={cn("text-muted-foreground mt-1", isLarge ? "text-xs" : "text-[9px]")}>Formats supported: .csv, .xlsx (max size: 5MB)</p>
       </div>
 
       {preview && (
@@ -887,7 +889,7 @@ function InventoryImportDropzone({ inventory, setInventory, preview, setPreview,
             )}
           </div>
           {preview.errors.length > 0 ? (
-            <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+            <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
               <div className="text-[10px] text-destructive font-semibold flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" /> Fix row errors to import:
               </div>
@@ -961,83 +963,137 @@ function WarehouseStep({
         <p className="text-muted-foreground mt-2 text-sm">Add one or more warehouses. You can also skip this if you're store-only.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mb-4 pr-1">
-        {warehouses.map((wh, i) => (
-          <div key={i} className="glass rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-linear-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center">
-              <Warehouse className="w-4 h-4 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-foreground">
-                {wh.name} <span className="text-xs text-muted-foreground">({wh.code})</span>
-              </div>
-              <div className="text-xs text-muted-foreground truncate">{wh.address || "No address specified"}</div>
-              {wh.inventory && wh.inventory.length > 0 && (
-                <div className="text-[10px] text-primary font-semibold mt-1">
-                  ✓ {wh.inventory.length} products loaded from inventory file
+      {warehouses.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full mb-6">
+          {warehouses.map((wh, i) => (
+            <div key={i} className="glass rounded-2xl p-4 flex items-center justify-between border border-white/10 hover:border-white/20 transition-all">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-9 h-9 rounded-xl bg-linear-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center shrink-0">
+                  <Warehouse className="w-4 h-4 text-primary" />
                 </div>
-              )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-foreground truncate">
+                    {wh.name} <span className="text-xs text-muted-foreground">({wh.code})</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">{wh.address || "No address specified"}</div>
+                  {wh.inventory && wh.inventory.length > 0 && (
+                    <div className="text-[10px] text-primary font-semibold mt-1">
+                      ✓ {wh.inventory.length} products loaded
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer shrink-0 ml-2"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={() => onRemove(i)}
-              className="text-muted-foreground hover:text-destructive p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
+          ))}
+        </div>
+      )}
 
+      <div className="w-full">
         {isAdding ? (
-          <form onSubmit={onAdd} className="glass rounded-2xl p-6 border border-primary/20 space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <label className="block">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Warehouse name <span className="text-red-500">*</span></span>
-                <input 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
-                  placeholder="Central Hub" 
-                  className={cn(
-                    "mt-1 w-full h-10 rounded-lg border bg-white/2 px-3 text-sm outline-none transition-all",
-                    errors.name ? "border-destructive" : "border-white/10 focus:border-primary/50"
-                  )} 
-                  required 
+          <form onSubmit={onAdd} className="glass rounded-2xl p-6 border border-primary/20 space-y-6 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: Form Details (col-span-5) */}
+              <div className="lg:col-span-5 space-y-4">
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider border-b border-white/5 pb-2">Warehouse Details</h3>
+                <label className="block">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Warehouse name <span className="text-red-500">*</span></span>
+                  <input 
+                    value={name} 
+                    onChange={(e) => setName(e.target.value)} 
+                    placeholder="Central Hub" 
+                    className={cn(
+                      "mt-1 w-full h-10 rounded-lg border bg-white/2 px-3 text-sm outline-none transition-all focus:border-primary/50",
+                      errors.name ? "border-destructive focus:ring-destructive/30" : "border-white/10"
+                    )} 
+                    required 
+                  />
+                  {errors.name && <p className="text-[10px] text-destructive mt-1 font-semibold">{errors.name}</p>}
+                </label>
+                
+                <label className="block">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Code <span className="text-red-500">*</span></span>
+                  <input 
+                    value={code} 
+                    onChange={(e) => setCode(e.target.value)} 
+                    placeholder="WH-001" 
+                    className={cn(
+                      "mt-1.5 w-full h-10 rounded-lg border bg-white/2 px-3 text-sm outline-none transition-all focus:border-primary/50",
+                      errors.code ? "border-destructive focus:ring-destructive/30" : "border-white/10"
+                    )} 
+                    required 
+                  />
+                  {errors.code && <p className="text-[10px] text-destructive mt-1 font-semibold">{errors.code}</p>}
+                </label>
+
+                <label className="block">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Address</span>
+                  <input 
+                    value={address} 
+                    onChange={(e) => setAddress(e.target.value)} 
+                    placeholder="123 Storage Ln..." 
+                    className="mt-1.5 w-full h-10 rounded-lg border border-white/10 bg-white/2 px-3 text-sm outline-none focus:border-primary/50 transition-all" 
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Capacity</span>
+                    <input 
+                      value={capacity} 
+                      onChange={(e) => setCapacity(e.target.value)} 
+                      placeholder="e.g. 50000" 
+                      className="mt-1.5 w-full h-10 rounded-lg border border-white/10 bg-white/2 px-3 text-sm outline-none focus:border-primary/50 transition-all" 
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Phone</span>
+                    <input 
+                      value={phone} 
+                      onChange={(e) => setPhone(e.target.value)} 
+                      placeholder="+12345..." 
+                      className="mt-1.5 w-full h-10 rounded-lg border border-white/10 bg-white/2 px-3 text-sm outline-none focus:border-primary/50 transition-all" 
+                    />
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Contact Email</span>
+                  <input 
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} 
+                    placeholder="contact@..." 
+                    className="mt-1.5 w-full h-10 rounded-lg border border-white/10 bg-white/2 px-3 text-sm outline-none focus:border-primary/50 transition-all" 
+                  />
+                </label>
+              </div>
+
+              {/* Right Column: Dropzone (col-span-7) */}
+              <div className="lg:col-span-7 space-y-4">
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider border-b border-white/5 pb-2">Inventory Bulk Import</h3>
+                <InventoryImportDropzone
+                  inventory={inventory}
+                  setInventory={setInventory}
+                  preview={preview}
+                  setPreview={setPreview}
+                  confirmed={confirmed}
+                  setConfirmed={setConfirmed}
+                  isLarge={true}
                 />
-                {errors.name && <p className="text-[10px] text-destructive mt-1 font-semibold">{errors.name}</p>}
-              </label>
-              <label className="block">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Code <span className="text-red-500">*</span></span>
-                <input 
-                  value={code} 
-                  onChange={(e) => setCode(e.target.value)} 
-                  placeholder="WH-001" 
-                  className={cn(
-                    "mt-1 w-full h-10 rounded-lg border bg-white/2 px-3 text-sm outline-none transition-all",
-                    errors.code ? "border-destructive" : "border-white/10 focus:border-primary/50"
-                  )} 
-                  required 
-                />
-                {errors.code && <p className="text-[10px] text-destructive mt-1 font-semibold">{errors.code}</p>}
-              </label>
-              <label className="block col-span-2">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Address</span>
-                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Storage Ln..." className="mt-1 w-full h-10 rounded-lg border border-white/10 bg-white/2 px-3 text-sm outline-none focus:border-primary/50 transition-all" />
-              </label>
+              </div>
             </div>
 
-            <InventoryImportDropzone
-              inventory={inventory}
-              setInventory={setInventory}
-              preview={preview}
-              setPreview={setPreview}
-              confirmed={confirmed}
-              setConfirmed={setConfirmed}
-            />
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
+            <div className="flex justify-end gap-2 pt-4 border-t border-white/5">
               <button 
                 type="button" 
                 onClick={() => {
-                  setName(""); setCode(""); setAddress("");
+                  setName(""); setCode(""); setAddress(""); setCapacity(""); setEmail(""); setPhone("");
                   setInventory([]); setPreview(null); setConfirmed(false);
                   setIsAdding(false);
                 }} 
@@ -1090,89 +1146,113 @@ function StoresStep({
         <h2 className="font-display text-3xl mt-2 tracking-tight text-foreground font-semibold">Connect your retail stores</h2>
         <p className="text-muted-foreground mt-2 text-sm">Add as many as you'd like — you can bulk-import later via CSV or API.</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mb-4 pr-1">
-        {stores.map((s, i) => (
-          <div key={i} className="glass rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-linear-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center">
-              <Store className="w-4 h-4 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-foreground">
-                {s.name} <span className="text-xs text-muted-foreground">({s.code})</span>
-              </div>
-              <div className="text-xs text-muted-foreground">{s.city}</div>
-              {s.inventory && s.inventory.length > 0 && (
-                <div className="text-[10px] text-primary font-semibold mt-1">
-                  ✓ {s.inventory.length} products loaded from inventory file
+
+      {stores.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full mb-6">
+          {stores.map((s, i) => (
+            <div key={i} className="glass rounded-2xl p-4 flex items-center justify-between border border-white/10 hover:border-white/20 transition-all">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-9 h-9 rounded-xl bg-linear-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center shrink-0">
+                  <Store className="w-4 h-4 text-primary" />
                 </div>
-              )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-foreground truncate">
+                    {s.name} <span className="text-xs text-muted-foreground">({s.code})</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">{s.city}</div>
+                  {s.inventory && s.inventory.length > 0 && (
+                    <div className="text-[10px] text-primary font-semibold mt-1">
+                      ✓ {s.inventory.length} products loaded
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-2">
+                <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded-md border border-success/30 text-success bg-success/10 font-medium">
+                  Linked
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemove(i)}
+                  className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-            <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded-md border border-success/30 text-success bg-success/10 mr-2 font-medium">
-              Linked
-            </span>
-            <button
-              onClick={() => onRemove(i)}
-              className="text-muted-foreground hover:text-destructive p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
+          ))}
+        </div>
+      )}
 
+      <div className="w-full">
         {isAddingStore ? (
-          <form onSubmit={onAdd} className="glass rounded-2xl p-4 border border-primary/20 space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1">
-                <input
-                  value={newStoreName}
-                  onChange={(e) => setNewStoreName(e.target.value)}
-                  placeholder="Store Name *"
-                  className={cn(
-                    "w-full h-10 rounded-lg border bg-white/2 px-3 text-xs outline-none transition-all",
-                    errors.name ? "border-destructive" : "border-white/10 focus:border-primary/50"
-                  )}
-                  required
-                />
-                {errors.name && <p className="text-[9px] text-destructive font-semibold pl-1">{errors.name}</p>}
+          <form onSubmit={onAdd} className="glass rounded-2xl p-6 border border-primary/20 space-y-6 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: Form Details (col-span-5) */}
+              <div className="lg:col-span-5 space-y-4">
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider border-b border-white/5 pb-2">Store Details</h3>
+                <label className="block">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Store name <span className="text-red-500">*</span></span>
+                  <input
+                    value={newStoreName}
+                    onChange={(e) => setNewStoreName(e.target.value)}
+                    placeholder="Downtown Store"
+                    className={cn(
+                      "mt-1 w-full h-10 rounded-lg border bg-white/2 px-3 text-sm outline-none transition-all focus:border-primary/50",
+                      errors.name ? "border-destructive focus:ring-destructive/30" : "border-white/10"
+                    )}
+                    required
+                  />
+                  {errors.name && <p className="text-[10px] text-destructive mt-1 font-semibold">{errors.name}</p>}
+                </label>
+                
+                <label className="block">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Code <span className="text-red-500">*</span></span>
+                  <input
+                    value={newStoreCode}
+                    onChange={(e) => setNewStoreCode(e.target.value)}
+                    placeholder="ST-101"
+                    className={cn(
+                      "mt-1.5 w-full h-10 rounded-lg border bg-white/2 px-3 text-sm outline-none transition-all focus:border-primary/50",
+                      errors.code ? "border-destructive focus:ring-destructive/30" : "border-white/10"
+                    )}
+                    required
+                  />
+                  {errors.code && <p className="text-[10px] text-destructive mt-1 font-semibold">{errors.code}</p>}
+                </label>
+
+                <label className="block">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">City <span className="text-red-500">*</span></span>
+                  <input
+                    value={newStoreCity}
+                    onChange={(e) => setNewStoreCity(e.target.value)}
+                    placeholder="Mumbai"
+                    className={cn(
+                      "mt-1.5 w-full h-10 rounded-lg border bg-white/2 px-3 text-sm outline-none transition-all focus:border-primary/50",
+                      errors.city ? "border-destructive focus:ring-destructive/30" : "border-white/10"
+                    )}
+                    required
+                  />
+                  {errors.city && <p className="text-[10px] text-destructive mt-1 font-semibold">{errors.city}</p>}
+                </label>
               </div>
-              <div className="space-y-1">
-                <input
-                  value={newStoreCode}
-                  onChange={(e) => setNewStoreCode(e.target.value)}
-                  placeholder="Code (ST-101) *"
-                  className={cn(
-                    "w-full h-10 rounded-lg border bg-white/2 px-3 text-xs outline-none transition-all",
-                    errors.code ? "border-destructive" : "border-white/10 focus:border-primary/50"
-                  )}
-                  required
+
+              {/* Right Column: Dropzone (col-span-7) */}
+              <div className="lg:col-span-7 space-y-4">
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider border-b border-white/5 pb-2">Inventory Bulk Import</h3>
+                <InventoryImportDropzone
+                  inventory={inventory}
+                  setInventory={setInventory}
+                  preview={preview}
+                  setPreview={setPreview}
+                  confirmed={confirmed}
+                  setConfirmed={setConfirmed}
+                  isLarge={true}
                 />
-                {errors.code && <p className="text-[9px] text-destructive font-semibold pl-1">{errors.code}</p>}
-              </div>
-              <div className="space-y-1">
-                <input
-                  value={newStoreCity}
-                  onChange={(e) => setNewStoreCity(e.target.value)}
-                  placeholder="City (Mumbai) *"
-                  className={cn(
-                    "w-full h-10 rounded-lg border bg-white/2 px-3 text-xs outline-none transition-all",
-                    errors.city ? "border-destructive" : "border-white/10 focus:border-primary/50"
-                  )}
-                  required
-                />
-                {errors.city && <p className="text-[9px] text-destructive font-semibold pl-1">{errors.city}</p>}
               </div>
             </div>
 
-            <InventoryImportDropzone
-              inventory={inventory}
-              setInventory={setInventory}
-              preview={preview}
-              setPreview={setPreview}
-              confirmed={confirmed}
-              setConfirmed={setConfirmed}
-            />
-
-            <div className="flex justify-end gap-2 text-xs pt-1 border-t border-white/5">
+            <div className="flex justify-end gap-2 pt-4 border-t border-white/5">
               <button
                 type="button"
                 onClick={() => {
@@ -1180,22 +1260,22 @@ function StoresStep({
                   setInventory([]); setPreview(null); setConfirmed(false);
                   setIsAddingStore(false);
                 }}
-                className="h-8 px-3 rounded-lg border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/3 transition-colors cursor-pointer"
+                className="h-9 px-4 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-white/3 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="h-8 px-3 rounded-lg bg-primary text-primary-foreground font-semibold cursor-pointer"
+                className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold cursor-pointer"
               >
-                Add store
+                Add Store
               </button>
             </div>
           </form>
         ) : (
           <button
             onClick={() => setIsAddingStore(true)}
-            className="w-full h-12 rounded-2xl border border-dashed border-white/15 text-sm text-muted-foreground hover:text-foreground hover:border-white/30 flex items-center justify-center gap-2 transition-colors cursor-pointer bg-white/2"
+            className="w-full h-14 rounded-2xl border border-dashed border-white/15 text-sm text-muted-foreground hover:text-foreground hover:border-white/30 flex items-center justify-center gap-2 transition-colors cursor-pointer bg-white/2"
           >
             <Plus className="w-4 h-4" /> Add another store
           </button>
