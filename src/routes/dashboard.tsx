@@ -138,11 +138,16 @@ function DashboardPage() {
   const revenueStr = dashboard?.revenue ? `$${Number(dashboard.revenue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "$0";
   const invValueStr = dashboard?.inventoryValue ? `$${(Number(dashboard.inventoryValue) / 1000000).toFixed(2)}M` : "$0.00M";
 
-  const liveRecs = aiInsights?.recommendations?.map((text: string) => {
-    const isReorder = text.toLowerCase().includes("reorder") || text.toLowerCase().includes("replenishment");
+  const liveRecs = aiInsights?.recommendations?.map((rec: any) => {
+    const textVal = typeof rec === "string" ? rec : (rec?.title || rec?.body || rec?.description || "");
+    const tagVal = typeof rec === "string" ? null : rec?.tag;
+    const isReorder = 
+      String(tagVal || "").toLowerCase().includes("reorder") || 
+      textVal.toLowerCase().includes("reorder") || 
+      textVal.toLowerCase().includes("replenishment");
     return {
-      tag: isReorder ? "Reorder" : "Redistribute",
-      text,
+      tag: tagVal || (isReorder ? "Reorder" : "Redistribute"),
+      text: textVal,
       impact: isReorder ? "Suggested restocking" : "Avoid stockout"
     };
   }) || [
