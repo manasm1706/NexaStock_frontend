@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Caption } from "@/components/ui/typography";
 import {
   LayoutDashboard, Boxes, Brain, Store, BarChart3, Settings,
-  ScanLine, Sparkles, Search, Bell, Edit, Eye, EyeOff, Star, GripVertical, ChevronUp, ChevronDown, Lock, RotateCcw
+  ScanLine, Sparkles, Search, Bell, Edit, Eye, EyeOff, Star, GripVertical, ChevronUp, ChevronDown, Lock, RotateCcw, Truck
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -21,10 +21,15 @@ export const MODULE_REGISTRY: Record<string, { to: string; icon: any; label: str
   inventory: { to: "/inventory", icon: Boxes, label: "Inventory" },
   ai: { to: "/ai", icon: Brain, label: "AI Center" },
   stores: { to: "/stores", icon: Store, label: "Stores" },
+  dealers: { to: "/dealers", icon: Truck, label: "Dealers" },
   pos: { to: "/pos", icon: ScanLine, label: "POS" },
   analytics: { to: "/analytics", icon: BarChart3, label: "Analytics" },
   settings: { to: "/settings", icon: Settings, label: "Settings" }
 };
+
+const DEFAULT_SIDEBAR_ORDER = [
+  "dashboard", "inventory", "ai", "stores", "dealers", "pos", "analytics", "settings"
+];
 
 // Check if a role is permitted to see a module
 export function hasModulePermission(moduleId: string, role: string, effectivePermissions?: string[]): boolean {
@@ -59,6 +64,13 @@ export function hasModulePermission(moduleId: string, role: string, effectivePer
     if (moduleId === "ai") return effectivePermissions.includes("AI_READ");
     if (moduleId === "pos") return effectivePermissions.includes("POS_SALES");
     if (moduleId === "analytics") return effectivePermissions.includes("ANALYTICS_READ");
+    if (moduleId === "dealers") {
+      return (
+        effectivePermissions.includes("WAREHOUSE_MANAGEMENT") ||
+        effectivePermissions.includes("INVENTORY_WRITE") ||
+        effectivePermissions.includes("INVENTORY_READ")
+      );
+    }
     if (moduleId === "stores") {
       return (
         effectivePermissions.includes("WAREHOUSE_MANAGEMENT") ||
@@ -72,13 +84,13 @@ export function hasModulePermission(moduleId: string, role: string, effectivePer
     return moduleId === "pos";
   }
   if (role === "warehouse_manager") {
-    return moduleId === "inventory" || moduleId === "stores";
+    return moduleId === "inventory" || moduleId === "stores" || moduleId === "dealers";
   }
   if (role === "store_manager") {
-    return moduleId === "dashboard" || moduleId === "inventory" || moduleId === "pos" || moduleId === "stores";
+    return moduleId === "dashboard" || moduleId === "inventory" || moduleId === "pos" || moduleId === "stores" || moduleId === "dealers";
   }
   if (role === "operations_manager") {
-    return moduleId === "dashboard" || moduleId === "inventory" || moduleId === "ai" || moduleId === "stores" || moduleId === "pos" || moduleId === "analytics" || moduleId === "settings";
+    return moduleId === "dashboard" || moduleId === "inventory" || moduleId === "ai" || moduleId === "stores" || moduleId === "dealers" || moduleId === "pos" || moduleId === "analytics" || moduleId === "settings";
   }
   return false;
 }
@@ -152,12 +164,14 @@ export function DashboardLayout({
       .substring(0, 2)
     : "JD";
 
-  // Sidebar parameters falling back to role-based list if undefined
-  const sidebarOrder: string[] = workspaceSettings?.sidebarOrder || [
-    "dashboard", "inventory", "ai", "stores", "pos", "analytics", "settings"
-  ];
-  const sidebarFavorites: string[] = workspaceSettings?.sidebarFavorites || [];
-  const sidebarHidden: string[] = workspaceSettings?.sidebarHidden || [];
+  // Sidebar parameters with backward-compatible merge for older saved settings
+  const persistedOrder: string[] = workspaceSettings?.sidebarOrder || [];
+  const validPersistedOrder = persistedOrder.filter((id) => Boolean(MODULE_REGISTRY[id]));
+  const missingDefaultModules = DEFAULT_SIDEBAR_ORDER.filter((id) => !validPersistedOrder.includes(id));
+  const sidebarOrder: string[] = [...validPersistedOrder, ...missingDefaultModules];
+
+  const sidebarFavorites: string[] = (workspaceSettings?.sidebarFavorites || []).filter((id: string) => Boolean(MODULE_REGISTRY[id]));
+  const sidebarHidden: string[] = (workspaceSettings?.sidebarHidden || []).filter((id: string) => Boolean(MODULE_REGISTRY[id]));
 
   const updateWorkspaceMutation = async (newSettings: any) => {
     try {

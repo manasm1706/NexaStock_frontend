@@ -18,6 +18,7 @@ import { Route as PosRouteImport } from './routes/pos'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as DealersRouteImport } from './routes/dealers'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -75,6 +76,11 @@ const LoginRoute = LoginRouteImport.update({
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DealersRoute = DealersRouteImport.update({
+  id: '/dealers',
+  path: '/dealers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
+  '/dealers': typeof DealersRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
+  '/dealers': typeof DealersRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -201,6 +209,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
+  '/dealers': typeof DealersRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -227,6 +236,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/customers'
     | '/dashboard'
+    | '/dealers'
     | '/inventory'
     | '/login'
     | '/onboarding'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/customers'
     | '/dashboard'
+    | '/dealers'
     | '/inventory'
     | '/login'
     | '/onboarding'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/customers'
     | '/dashboard'
+    | '/dealers'
     | '/inventory'
     | '/login'
     | '/onboarding'
@@ -300,6 +312,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   CustomersRoute: typeof CustomersRoute
   DashboardRoute: typeof DashboardRoute
+  DealersRoute: typeof DealersRoute
   InventoryRoute: typeof InventoryRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -379,6 +392,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dealers': {
+      id: '/dealers'
+      path: '/dealers'
+      fullPath: '/dealers'
+      preLoaderRoute: typeof DealersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -484,6 +504,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   CustomersRoute: CustomersRoute,
   DashboardRoute: DashboardRoute,
+  DealersRoute: DealersRoute,
   InventoryRoute: InventoryRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,

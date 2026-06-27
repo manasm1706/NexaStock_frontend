@@ -332,6 +332,44 @@ export const api = {
     return apiRequest<any[]>("GET", "/suppliers");
   },
 
+  async createSupplier(supplier: {
+    name: string;
+    code?: string;
+    contactName?: string;
+    phone?: string;
+    email?: string;
+    taxId?: string;
+  }): Promise<any> {
+    return apiRequest<any>("POST", "/suppliers", supplier);
+  },
+
+  async updateSupplier(id: string, supplier: {
+    name?: string;
+    code?: string;
+    contactName?: string;
+    phone?: string;
+    email?: string;
+    taxId?: string;
+    status?: "active" | "paused";
+  }): Promise<any> {
+    return apiRequest<any>("PUT", `/suppliers/${id}`, supplier);
+  },
+
+  async setSupplierProducts(id: string, productIds: string[]): Promise<any> {
+    return apiRequest<any>("PUT", `/suppliers/${id}/products`, { productIds });
+  },
+
+  async deleteSupplier(id: string): Promise<any> {
+    return apiRequest<any>("DELETE", `/suppliers/${id}`);
+  },
+
+  async sendSupplierOrder(id: string, order: {
+    items: Array<{ productId: string; quantity: number }>;
+    notes?: string;
+  }): Promise<{ success: boolean; poId: string; poNumber: string; grandTotal: number; formattedMessage: string; phone: string; email: string }> {
+    return apiRequest<any>("POST", `/suppliers/${id}/send-order`, order);
+  },
+
   // Inventory
   async getInventoryBalances(): Promise<any[]> {
     return apiRequest<any[]>("GET", "/inventory/balances");

@@ -1418,9 +1418,12 @@ function WorkspaceSettingsPanel() {
   const profile = authState.getProfile();
   const userRole = profile?.role || "";
 
-  const sidebarOrder: string[] = workspaceSettings?.sidebarOrder || [
-    "dashboard", "inventory", "ai", "stores", "pos", "analytics", "settings"
+  const defaultSidebarOrder = [
+    "dashboard", "inventory", "ai", "stores", "dealers", "pos", "analytics", "settings"
   ];
+
+  const persistedOrder: string[] = workspaceSettings?.sidebarOrder || [];
+  const sidebarOrder: string[] = [...persistedOrder, ...defaultSidebarOrder.filter((id) => !persistedOrder.includes(id))];
   const sidebarFavorites: string[] = workspaceSettings?.sidebarFavorites || [];
   const sidebarHidden: string[] = workspaceSettings?.sidebarHidden || [];
 
