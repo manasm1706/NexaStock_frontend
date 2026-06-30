@@ -10,6 +10,8 @@ import { useState, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { api, authState } from "@/lib/api/client";
 import { ProfileSettingsModal } from "./ProfileSettingsModal";
+import { LocationSwitcher } from "./LocationSwitcher";
+import { useLocation } from "@/contexts/LocationContext";
 import { getBusinessType } from "@/lib/constants";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -104,6 +106,9 @@ export function DashboardLayout({
   const [isEditingSidebar, setIsEditingSidebar] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
+  // Location context for switcher
+  const { setAvailableLocations } = useLocation();
+
   // Queries
   const { data: tenantData } = useQuery({
     queryKey: ["tenant-summary"],
@@ -116,6 +121,20 @@ export function DashboardLayout({
     queryFn: () => api.getWorkspaceSettings(),
     staleTime: 5 * 60 * 1000,
   });
+
+  // Load locations for switcher
+  const { data: locations = [] } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => api.getLocations(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Update available locations when data loads
+  useEffect(() => {
+    if (locations.length > 0) {
+      setAvailableLocations(locations);
+    }
+  }, [locations, setAvailableLocations]);
 
   const bizType = getBusinessType(tenantData?.tenant?.industry);
   const profile = authState.getProfile();
@@ -482,6 +501,7 @@ export function DashboardLayout({
               <kbd className="text-[10px] text-muted-foreground border border-white/10 rounded px-1.5 py-0.5">⌘K</kbd>
             </div>
             <div className="ml-auto flex items-center gap-2">
+              <LocationSwitcher />
               <button className="w-9 h-9 rounded-xl glass flex items-center justify-center relative">
                 <Bell className="w-4 h-4" />
                 <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-primary" />

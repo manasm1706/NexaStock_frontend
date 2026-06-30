@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { LocationProvider } from "@/contexts/LocationContext";
 
 import appCss from "../styles.css?url";
 
@@ -199,8 +200,10 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <GoogleOAuthProvider clientId="1054113477349-stcda9foj6atinjdlchr5ouh51n5kj2u.apps.googleusercontent.com">
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <LocationProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </LocationProvider>
       </GoogleOAuthProvider>
     </QueryClientProvider>
   );

@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/app/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/card/GlassCard";
@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { Store, MapPin, TrendingUp, Plus, Loader2, Warehouse } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, authState } from "@/lib/api/client";
+import { useLocation } from "@/contexts/LocationContext";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -48,6 +49,8 @@ export const Route = createFileRoute("/stores")({
 
 function StoresPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { setSelectedLocationId } = useLocation();
   const [open, setOpen] = useState(false);
 
   // Form states
@@ -186,10 +189,15 @@ function StoresPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            whileHover={{ y: -3 }}
-            className="relative overflow-hidden"
+            whileHover={{ y: -3, scale: 1.02 }}
+            className="relative overflow-hidden cursor-pointer"
+            onClick={() => {
+              setSelectedLocationId(s.id);
+              navigate({ to: "/dashboard" });
+              toast.success(`Switched to ${s.name}`);
+            }}
           >
-            <GlassCard className="p-5">
+            <GlassCard className="p-5 hover:border-primary/30 transition-colors">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center">
                   {s.type === "warehouse" ? (

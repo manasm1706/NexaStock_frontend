@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, authState } from "@/lib/api/client";
+import { useLocation } from "@/contexts/LocationContext";
 import { useState, useEffect, type ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -121,6 +122,9 @@ function DashboardPage() {
   const userName = profile?.fullName ? profile.fullName.split(" ")[0] : "Jane";
   const userRole = profile?.role || "";
   const effectivePermissions = profile?.effectivePermissions;
+  
+  // Location context for filtering
+  const { selectedLocationId, isGlobalView, selectedLocation } = useLocation();
 
   // State
   const [isEditing, setIsEditing] = useState(false);
@@ -130,10 +134,22 @@ function DashboardPage() {
   const [localLayouts, setLocalLayouts] = useState<LayoutConfig[]>([]);
   const [localActiveLayoutName, setLocalActiveLayoutName] = useState<string>("");
 
-  // API Queries
+  // API Queries - Dashboard analytics filtered by selected location
   const { data: dashboard, isLoading: loadingDashboard } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => api.getAnalyticsDashboard(),
+    queryKey: ["dashboard", selectedLocationId],
+    queryFn: async () => {
+      // Build query params
+      const params = new URLSearchParams();
+      if (!isGlobalView && selectedLocationId) {
+        params.set("locationId", selectedLocationId);
+      }
+      const queryString = params.toString();
+      return api.getAnalyticsDashboard(
+        undefined, 
+        undefined, 
+        queryString
+      );
+    },
     refetchInterval: 15000
   });
 

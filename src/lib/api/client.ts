@@ -476,8 +476,49 @@ export const api = {
   },
 
   // Team Management & Invitations
-  async inviteUser(email: string, fullName: string, roleId: string): Promise<any> {
-    return apiRequest<any>("POST", "/users/invite", { email, fullName, roleId });
+  async inviteUser(
+    email: string, 
+    fullName: string, 
+    roleId: string,
+    extra?: {
+      assignedLocations?: string[];
+      permissionOverrides?: Array<{ permissionId: string; allowed: boolean }>;
+      department?: string;
+      reportsTo?: string;
+      userProfile?: {
+        jobTitle?: string;
+        dateOfBirth?: string;
+        phoneNumber?: string;
+        emergencyContact?: string;
+        emergencyPhone?: string;
+        hireDate?: string;
+        employmentType?: string;
+        workSchedule?: string;
+        probationEndDate?: string;
+        managerUserId?: string;
+        skills?: string[];
+        certifications?: string[];
+        nationalId?: string;
+        passportNumber?: string;
+        taxId?: string;
+        bankAccountNumber?: string;
+        bankName?: string;
+        bankBranch?: string;
+        languagesSpoken?: string[];
+        profileImageUrl?: string;
+        notes?: string;
+      };
+    }
+  ): Promise<any> {
+    const payload: any = { email, fullName, roleId };
+    if (extra) {
+      if (extra.assignedLocations) payload.assignedLocations = extra.assignedLocations;
+      if (extra.permissionOverrides) payload.permissionOverrides = extra.permissionOverrides;
+      if (extra.department) payload.department = extra.department;
+      if (extra.reportsTo) payload.reportsTo = extra.reportsTo;
+      if (extra.userProfile) payload.userProfile = extra.userProfile;
+    }
+    return apiRequest<any>("POST", "/users/invite", payload);
   },
 
   async resendInvitation(userId: string): Promise<any> {
@@ -590,5 +631,23 @@ export const api = {
   // Organization settings
   async updateTenantSummary(payload: { name: string; legalName: string; timezone: string; primaryCurrency: string }): Promise<any> {
     return apiRequest<any>("PUT", "/tenants/current", payload);
+  },
+
+  // NEW: User Profile Management (Task 11)
+  async getUserProfile(userId: string): Promise<any> {
+    return apiRequest<any>("GET", `/users/${userId}/profile`);
+  },
+
+  async updateUserProfile(userId: string, profileData: any): Promise<any> {
+    return apiRequest<any>("PATCH", `/users/${userId}/profile`, profileData);
+  },
+
+  // NEW: Permission Matrix Management (Task 10)
+  async getPermissionMatrix(): Promise<any> {
+    return apiRequest<any>("GET", "/settings/permissions");
+  },
+
+  async togglePermission(roleId: string, permissionId: string, allowed: boolean): Promise<any> {
+    return apiRequest<any>("PATCH", `/settings/permissions/${roleId}/${permissionId}`, { roleId, permissionId, allowed });
   }
 };

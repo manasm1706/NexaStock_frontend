@@ -27,11 +27,13 @@ import { Route as AiRouteImport } from './routes/ai'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsPermissionsRouteImport } from './routes/settings.permissions'
 import { Route as PlatformRolesRouteImport } from './routes/platform.roles'
 import { Route as PlatformPosRouteImport } from './routes/platform.pos'
 import { Route as PlatformInventoryRouteImport } from './routes/platform.inventory'
 import { Route as PlatformAnalyticsRouteImport } from './routes/platform.analytics'
 import { Route as PlatformAiCenterRouteImport } from './routes/platform.ai-center'
+import { Route as UsersUserIdProfileRouteImport } from './routes/users.$userId.profile'
 
 const StoresRoute = StoresRouteImport.update({
   id: '/stores',
@@ -123,6 +125,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsPermissionsRoute = SettingsPermissionsRouteImport.update({
+  id: '/permissions',
+  path: '/permissions',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const PlatformRolesRoute = PlatformRolesRouteImport.update({
   id: '/platform/roles',
   path: '/platform/roles',
@@ -148,6 +155,11 @@ const PlatformAiCenterRoute = PlatformAiCenterRouteImport.update({
   path: '/platform/ai-center',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UsersUserIdProfileRoute = UsersUserIdProfileRouteImport.update({
+  id: '/users/$userId/profile',
+  path: '/users/$userId/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -166,13 +178,15 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
   '/security': typeof SecurityRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/stores': typeof StoresRoute
   '/platform/ai-center': typeof PlatformAiCenterRoute
   '/platform/analytics': typeof PlatformAnalyticsRoute
   '/platform/inventory': typeof PlatformInventoryRoute
   '/platform/pos': typeof PlatformPosRoute
   '/platform/roles': typeof PlatformRolesRoute
+  '/settings/permissions': typeof SettingsPermissionsRoute
+  '/users/$userId/profile': typeof UsersUserIdProfileRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -191,13 +205,15 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
   '/security': typeof SecurityRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/stores': typeof StoresRoute
   '/platform/ai-center': typeof PlatformAiCenterRoute
   '/platform/analytics': typeof PlatformAnalyticsRoute
   '/platform/inventory': typeof PlatformInventoryRoute
   '/platform/pos': typeof PlatformPosRoute
   '/platform/roles': typeof PlatformRolesRoute
+  '/settings/permissions': typeof SettingsPermissionsRoute
+  '/users/$userId/profile': typeof UsersUserIdProfileRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -217,13 +233,15 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
   '/security': typeof SecurityRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/stores': typeof StoresRoute
   '/platform/ai-center': typeof PlatformAiCenterRoute
   '/platform/analytics': typeof PlatformAnalyticsRoute
   '/platform/inventory': typeof PlatformInventoryRoute
   '/platform/pos': typeof PlatformPosRoute
   '/platform/roles': typeof PlatformRolesRoute
+  '/settings/permissions': typeof SettingsPermissionsRoute
+  '/users/$userId/profile': typeof UsersUserIdProfileRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -251,6 +269,8 @@ export interface FileRouteTypes {
     | '/platform/inventory'
     | '/platform/pos'
     | '/platform/roles'
+    | '/settings/permissions'
+    | '/users/$userId/profile'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -276,6 +296,8 @@ export interface FileRouteTypes {
     | '/platform/inventory'
     | '/platform/pos'
     | '/platform/roles'
+    | '/settings/permissions'
+    | '/users/$userId/profile'
   id:
     | '__root__'
     | '/'
@@ -301,6 +323,8 @@ export interface FileRouteTypes {
     | '/platform/inventory'
     | '/platform/pos'
     | '/platform/roles'
+    | '/settings/permissions'
+    | '/users/$userId/profile'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -320,13 +344,14 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   RegisterRoute: typeof RegisterRoute
   SecurityRoute: typeof SecurityRoute
-  SettingsRoute: typeof SettingsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
   StoresRoute: typeof StoresRoute
   PlatformAiCenterRoute: typeof PlatformAiCenterRoute
   PlatformAnalyticsRoute: typeof PlatformAnalyticsRoute
   PlatformInventoryRoute: typeof PlatformInventoryRoute
   PlatformPosRoute: typeof PlatformPosRoute
   PlatformRolesRoute: typeof PlatformRolesRoute
+  UsersUserIdProfileRoute: typeof UsersUserIdProfileRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -457,6 +482,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/permissions': {
+      id: '/settings/permissions'
+      path: '/permissions'
+      fullPath: '/settings/permissions'
+      preLoaderRoute: typeof SettingsPermissionsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/platform/roles': {
       id: '/platform/roles'
       path: '/platform/roles'
@@ -492,8 +524,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformAiCenterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/users/$userId/profile': {
+      id: '/users/$userId/profile'
+      path: '/users/$userId/profile'
+      fullPath: '/users/$userId/profile'
+      preLoaderRoute: typeof UsersUserIdProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
+
+interface SettingsRouteChildren {
+  SettingsPermissionsRoute: typeof SettingsPermissionsRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsPermissionsRoute: SettingsPermissionsRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -512,13 +563,14 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   RegisterRoute: RegisterRoute,
   SecurityRoute: SecurityRoute,
-  SettingsRoute: SettingsRoute,
+  SettingsRoute: SettingsRouteWithChildren,
   StoresRoute: StoresRoute,
   PlatformAiCenterRoute: PlatformAiCenterRoute,
   PlatformAnalyticsRoute: PlatformAnalyticsRoute,
   PlatformInventoryRoute: PlatformInventoryRoute,
   PlatformPosRoute: PlatformPosRoute,
   PlatformRolesRoute: PlatformRolesRoute,
+  UsersUserIdProfileRoute: UsersUserIdProfileRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,12 +1,13 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/app/DashboardLayout";
+import { InviteUserModal } from "@/components/app/InviteUserModal";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/card/GlassCard";
 import { SectionTitle } from "@/components/ui/typography";
 import {
   Building2, Users, Shield, Bell, KeyRound, CreditCard, Loader2,
   Lock, Key, Laptop, Info, Plus, Check, Trash2, UserX, UserCheck, RefreshCw, XCircle, LayoutGrid, GripVertical, Star, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw,
-  MapPin, ShieldAlert, Copy
+  MapPin, ShieldAlert, Copy, User
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, authState } from "@/lib/api/client";
@@ -116,10 +117,7 @@ function SettingsPage() {
   const [updatingOrg, setUpdatingOrg] = useState(false);
 
   // Invite user form
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteName, setInviteName] = useState("");
-  const [inviteRoleId, setInviteRoleId] = useState("");
-  const [inviting, setInviting] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   // Custom role creator
   const [newRoleName, setNewRoleName] = useState("");
@@ -212,36 +210,8 @@ function SettingsPage() {
   };
 
   // Invite Team Member
-  const handleInviteUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteEmail.trim() || !inviteName.trim() || !inviteRoleId) {
-      toast.error("Please fill out all fields.");
-      return;
-    }
-    setInviting(true);
-    try {
-      const result = await api.inviteUser(inviteEmail, inviteName, inviteRoleId);
-      setInviteEmail("");
-      setInviteName("");
-      setInviteRoleId("");
-      queryClient.invalidateQueries({ queryKey: ["team-users"] });
-      
-      // Since it's a demo backend that mocks emails, show the accept link in a toast or summary for manual acceptance
-      const acceptLink = result.inviteLink;
-      toast.success(
-        <div>
-          <span className="font-semibold">User Invited Successfully!</span>
-          <p className="text-[10px] text-muted-foreground mt-1 select-all font-mono bg-black/30 p-1 rounded border border-white/5">
-            Link: {window.location.origin + acceptLink}
-          </p>
-        </div>,
-        { duration: 15000 }
-      );
-    } catch (err: any) {
-      toast.error(err.message || "Failed to invite user");
-    } finally {
-      setInviting(false);
-    }
+  const handleInviteSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["team-users"] });
   };
 
   // Resend Invite
@@ -635,49 +605,19 @@ function SettingsPage() {
           {activeTab === "team" && (
             <div className="space-y-6">
               
-              {/* Invite user form */}
+              {/* Invite user button */}
               {isOwner && (
                 <GlassCard className="p-6">
                   <SectionTitle>Invite new team member</SectionTitle>
-                  <p className="text-xs text-muted-foreground">Add new staff members to collaborate in this workspace</p>
+                  <p className="text-xs text-muted-foreground">Add new staff members with complete employee profiles</p>
                   
-                  <form onSubmit={handleInviteUser} className="mt-4 grid sm:grid-cols-4 gap-3 items-end">
-                    <div className="sm:col-span-1">
-                      <label className="text-[10px] text-muted-foreground font-semibold">Full Name</label>
-                      <input
-                        value={inviteName}
-                        onChange={(e) => setInviteName(e.target.value)}
-                        placeholder="John Doe"
-                        className="mt-1 h-9 w-full rounded-xl border border-white/10 bg-white/2 px-3 text-xs text-foreground outline-none focus:border-primary transition-all"
-                      />
-                    </div>
-                    <div className="sm:col-span-1">
-                      <label className="text-[10px] text-muted-foreground font-semibold">Email Address</label>
-                      <input
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        placeholder="you@company.com"
-                        type="email"
-                        className="mt-1 h-9 w-full rounded-xl border border-white/10 bg-white/2 px-3 text-xs text-foreground outline-none focus:border-primary transition-all"
-                      />
-                    </div>
-                    <div className="sm:col-span-1">
-                      <label className="text-[10px] text-muted-foreground font-semibold">Assigned Role</label>
-                      <select
-                        value={inviteRoleId}
-                        onChange={(e) => setInviteRoleId(e.target.value)}
-                        className="mt-1 h-9 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-xs text-foreground outline-none focus:border-primary"
-                      >
-                        <option value="">Select a role...</option>
-                        {roles.map((r: any) => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <Button type="submit" disabled={inviting} variant="premiumGradient" className="h-9 w-full text-xs flex items-center justify-center gap-1">
-                      {inviting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Plus className="w-3.5 h-3.5" /> Invite</>}
-                    </Button>
-                  </form>
+                  <Button 
+                    onClick={() => setIsInviteModalOpen(true)} 
+                    variant="premiumGradient" 
+                    className="h-9 mt-4 text-xs flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Invite Team Member
+                  </Button>
                 </GlassCard>
               )}
 
@@ -765,6 +705,7 @@ function SettingsPage() {
                                   )}
                                   {m.status === "active" && (
                                     <>
+                                      <button onClick={() => window.location.href = `/users/${m.id}/profile`} title="View Profile" className="p-1 rounded hover:bg-white/10 text-accent inline-flex"><User className="w-3.5 h-3.5" /></button>
                                       <button onClick={() => openBranchModal(m)} title="Transfer Branch" className="p-1 rounded hover:bg-white/10 text-primary inline-flex"><MapPin className="w-3.5 h-3.5" /></button>
                                       <button onClick={() => openOverrideModal(m)} title="Override Permissions" className="p-1 rounded hover:bg-white/10 text-success inline-flex"><ShieldAlert className="w-3.5 h-3.5" /></button>
                                       <button onClick={() => handleDeactivateUser(m.id)} title="Deactivate" className="p-1 rounded hover:bg-white/10 text-warning inline-flex"><UserX className="w-3.5 h-3.5" /></button>
@@ -772,6 +713,7 @@ function SettingsPage() {
                                   )}
                                   {m.status === "disabled" && (
                                     <>
+                                      <button onClick={() => window.location.href = `/users/${m.id}/profile`} title="View Profile" className="p-1 rounded hover:bg-white/10 text-accent inline-flex"><User className="w-3.5 h-3.5" /></button>
                                       <button onClick={() => openBranchModal(m)} title="Transfer Branch" className="p-1 rounded hover:bg-white/10 text-primary inline-flex"><MapPin className="w-3.5 h-3.5" /></button>
                                       <button onClick={() => openOverrideModal(m)} title="Override Permissions" className="p-1 rounded hover:bg-white/10 text-success inline-flex"><ShieldAlert className="w-3.5 h-3.5" /></button>
                                       <button onClick={() => handleReactivateUser(m.id)} title="Reactivate" className="p-1 rounded hover:bg-white/10 text-success inline-flex"><UserCheck className="w-3.5 h-3.5" /></button>
@@ -821,24 +763,19 @@ function SettingsPage() {
                     </form>
                   </GlassCard>
 
-                  {/* Permission Matrix */}
+                  {/* Quick Links to Permission Management */}
                   <GlassCard className="lg:col-span-2 p-5 space-y-4">
-                    <SectionTitle>Permission Matrix Editor</SectionTitle>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground">Select Role:</span>
-                        <select
-                          value={selectedRoleId}
-                          onChange={(e) => setSelectedRoleId(e.target.value)}
-                          className="h-8 rounded-lg border border-white/10 bg-black/20 text-xs px-2 outline-none"
-                        >
-                          <option value="">Select a role to configure...</option>
-                          {roles.map((r: any) => (
-                            <option key={r.id} value={r.id}>{r.name} {r.isSystem ? "(System)" : ""}</option>
-                          ))}
-                        </select>
-                      </div>
-
+                    <SectionTitle>Role Management Tools</SectionTitle>
+                    <p className="text-xs text-muted-foreground">Access advanced role and permission controls</p>
+                    
+                    <div className="grid sm:grid-cols-2 gap-3 mt-4">
+                      <Button 
+                        onClick={() => window.location.href = "/settings/permissions"}
+                        variant="outline"
+                        className="h-10 text-xs flex items-center justify-center gap-2 border-primary/20 hover:bg-primary/5"
+                      >
+                        <ShieldAlert className="w-4 h-4" /> View Permission Matrix
+                      </Button>
                       {selectedRoleId && (
                         <Button 
                           onClick={() => {
@@ -848,45 +785,64 @@ function SettingsPage() {
                             setIsCloneModalOpen(true);
                           }}
                           variant="outline" 
-                          className="h-8 text-xs flex items-center gap-1 border-white/10 bg-white/3 hover:bg-white/10 text-foreground cursor-pointer"
+                          className="h-10 text-xs flex items-center justify-center gap-2 border-white/10 bg-white/3 hover:bg-white/10"
                         >
-                          <Copy className="w-3.5 h-3.5" /> Clone Role
+                          <Copy className="w-4 h-4" /> Clone Selected Role
                         </Button>
                       )}
                     </div>
 
-                    {selectedRoleId ? (
-                      loadingPerms ? (
-                        <div className="flex items-center justify-center py-6 text-xs text-muted-foreground font-mono">
-                          <Loader2 className="w-4 h-4 animate-spin text-primary" /> Loading permissions...
+                    {/* Inline Permission Matrix for single role */}
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground">Select Role to Configure:</span>
+                          <select
+                            value={selectedRoleId}
+                            onChange={(e) => setSelectedRoleId(e.target.value)}
+                            className="h-8 rounded-lg border border-white/10 bg-black/20 text-xs px-2 outline-none"
+                          >
+                            <option value="">Select a role...</option>
+                            {roles.map((r: any) => (
+                              <option key={r.id} value={r.id}>{r.name} {r.isSystem ? "(System)" : ""}</option>
+                            ))}
+                          </select>
                         </div>
-                      ) : (
-                        <div className="max-h-56 overflow-y-auto border border-white/5 rounded-xl divide-y divide-white/5 bg-black/20 pr-1">
-                          {selectedRolePerms.map((p: any) => (
-                            <div key={p.permissionId} className="flex items-center justify-between p-2.5 text-xs text-foreground">
-                              <div>
-                                <div className="font-semibold">{p.name}</div>
-                                <div className="text-[10px] text-muted-foreground font-mono uppercase">Key: {p.code} · Module: {p.module}</div>
-                              </div>
-                              <button
-                                onClick={() => handlePermissionToggle(p.code, p.allowed)}
-                                className={`h-6 px-2.5 rounded-full text-[10px] font-semibold border transition-all ${
-                                  p.allowed
-                                    ? "bg-success/10 text-success border-success/20"
-                                    : "bg-destructive/5 text-destructive border-destructive/20 hover:bg-success/5"
-                                }`}
-                              >
-                                {p.allowed ? "Allowed" : "Blocked"}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )
-                    ) : (
-                      <div className="text-center py-12 text-xs text-muted-foreground border border-dashed border-white/15 rounded-xl">
-                        Select a role above to view and edit its active permissions matrix.
                       </div>
-                    )}
+
+                      {selectedRoleId ? (
+                        loadingPerms ? (
+                          <div className="flex items-center justify-center py-6 text-xs text-muted-foreground font-mono">
+                            <Loader2 className="w-4 h-4 animate-spin text-primary" /> Loading permissions...
+                          </div>
+                        ) : (
+                          <div className="max-h-56 overflow-y-auto border border-white/5 rounded-xl divide-y divide-white/5 bg-black/20 pr-1 mt-3">
+                            {selectedRolePerms.map((p: any) => (
+                              <div key={p.permissionId} className="flex items-center justify-between p-2.5 text-xs text-foreground">
+                                <div>
+                                  <div className="font-semibold">{p.name}</div>
+                                  <div className="text-[10px] text-muted-foreground font-mono uppercase">Key: {p.code} · Module: {p.module}</div>
+                                </div>
+                                <button
+                                  onClick={() => handlePermissionToggle(p.code, p.allowed)}
+                                  className={`h-6 px-2.5 rounded-full text-[10px] font-semibold border transition-all ${
+                                    p.allowed
+                                      ? "bg-success/10 text-success border-success/20"
+                                      : "bg-destructive/5 text-destructive border-destructive/20 hover:bg-success/5"
+                                  }`}
+                                >
+                                  {p.allowed ? "Allowed" : "Blocked"}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      ) : (
+                        <div className="text-center py-8 text-xs text-muted-foreground border border-dashed border-white/15 rounded-xl mt-3">
+                          Select a role above to view and edit its permissions.
+                        </div>
+                      )}
+                    </div>
                   </GlassCard>
                 </div>
               )}
@@ -1129,6 +1085,15 @@ function SettingsPage() {
 
         </div>
       </div>
+
+      {/* Invite User Modal */}
+      <InviteUserModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        roles={roles}
+        locations={locations}
+        onSuccess={handleInviteSuccess}
+      />
 
       {/* Branch Assignment Modal */}
       {isBranchModalOpen && selectedUser && (
