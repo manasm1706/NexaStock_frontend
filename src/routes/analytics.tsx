@@ -9,6 +9,7 @@ import { Loader2, Calendar, Download, RefreshCw, BarChart3, Package, Layers, Map
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
+import { useCurrency } from "@/hooks/useCurrency";
 
 import { hasModulePermission } from "@/components/app/DashboardLayout";
 
@@ -40,6 +41,7 @@ type TrendType = "daily" | "weekly" | "monthly";
 
 function AnalyticsPage() {
   const queryClient = useQueryClient();
+  const { format, formatCompact } = useCurrency();
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [trendType, setTrendType] = useState<TrendType>("monthly");
 
@@ -165,12 +167,12 @@ function AnalyticsPage() {
 
   // Dashboard values
   const kpis = [
-    { label: "Today's Revenue", value: `$${(dashboard?.revenueMetrics?.today || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, delta: "Live" },
-    { label: "Week Revenue", value: `$${(dashboard?.revenueMetrics?.week || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, delta: "Trailing 7d" },
-    { label: "Month Revenue", value: `$${(dashboard?.revenueMetrics?.month || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, delta: "MTD" },
-    { label: "Year Revenue", value: `$${(dashboard?.revenueMetrics?.year || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, delta: "YTD" },
+    { label: "Today's Revenue", value: format(dashboard?.revenueMetrics?.today || 0, 2), delta: "Live" },
+    { label: "Week Revenue", value: format(dashboard?.revenueMetrics?.week || 0, 0), delta: "Trailing 7d" },
+    { label: "Month Revenue", value: format(dashboard?.revenueMetrics?.month || 0, 0), delta: "MTD" },
+    { label: "Year Revenue", value: format(dashboard?.revenueMetrics?.year || 0, 0), delta: "YTD" },
     { label: "Total Orders", value: (dashboard?.salesMetrics?.totalOrders || 0).toLocaleString(), delta: "Month" },
-    { label: "Avg Basket Value", value: `$${(dashboard?.salesMetrics?.averageOrderValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, delta: "Per sale" },
+    { label: "Avg Basket Value", value: format(dashboard?.salesMetrics?.averageOrderValue || 0, 2), delta: "Per sale" },
     { label: "Units Sold", value: (dashboard?.salesMetrics?.unitsSold || 0).toLocaleString(), delta: "Month" },
     { label: "Stockout Rate", value: stockoutRateStr, delta: "Active catalog", danger: true }
   ];
@@ -360,7 +362,7 @@ function AnalyticsPage() {
                           <div key={store.name} className="space-y-1">
                             <div className="flex justify-between text-xs">
                               <span className="font-medium">{store.name}</span>
-                              <span className="font-mono font-medium">${store.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              <span className="font-mono font-medium">{format(store.value)}</span>
                             </div>
                             <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                               <div className="h-full bg-primary rounded-full" style={{ width: `${percent}%` }} />
@@ -417,7 +419,7 @@ function AnalyticsPage() {
                           <div className="text-[10px] text-muted-foreground font-mono">{prod.sku}</div>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-mono font-semibold">${prod.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                          <div className="text-sm font-mono font-semibold">{format(prod.revenue)}</div>
                           <div className="text-[10px] text-success font-medium">{prod.units} units sold</div>
                         </div>
                       </div>
@@ -441,7 +443,7 @@ function AnalyticsPage() {
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-semibold">{prod.units} units</div>
-                          <div className="text-[10px] text-muted-foreground font-mono">${prod.revenue.toLocaleString()}</div>
+                          <div className="text-[10px] text-muted-foreground font-mono">{format(prod.revenue, 0)}</div>
                         </div>
                       </div>
                     ))
@@ -529,7 +531,7 @@ function AnalyticsPage() {
                             <td className="py-3 font-mono text-muted-foreground">{prod.sku}</td>
                             <td className="py-3 font-medium text-foreground">{prod.name}</td>
                             <td className="py-3 text-right font-mono">{prod.units}</td>
-                            <td className="py-3 text-right font-mono font-semibold">${prod.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="py-3 text-right font-mono font-semibold">{format(prod.revenue)}</td>
                           </tr>
                         ))
                       )}
@@ -597,9 +599,9 @@ function AnalyticsPage() {
                         {dashboard?.categoryAnalytics?.map((cat: any) => (
                           <tr key={cat.name} className="hover:bg-white/1">
                             <td className="py-3 font-sans font-medium text-foreground">{cat.name}</td>
-                            <td className="py-3 text-right">${cat.revenue.toLocaleString()}</td>
+                            <td className="py-3 text-right">{format(cat.revenue, 0)}</td>
                             <td className="py-3 text-right">{cat.unitsSold} units</td>
-                            <td className="py-3 text-right">${cat.inventoryValue.toLocaleString()}</td>
+                            <td className="py-3 text-right">{format(cat.inventoryValue, 0)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -621,7 +623,7 @@ function AnalyticsPage() {
                           <div key={wh.name} className="space-y-1">
                             <div className="flex justify-between text-xs">
                               <span className="font-medium">{wh.name}</span>
-                              <span className="font-mono text-muted-foreground">${wh.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                              <span className="font-mono text-muted-foreground">{format(wh.value, 0)}</span>
                             </div>
                             <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                               <div className="h-full bg-accent rounded-full" style={{ width: `${percent}%` }} />

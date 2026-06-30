@@ -10,6 +10,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, authState } from "@/lib/api/client";
 import { useLocation } from "@/contexts/LocationContext";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useState, useEffect, type ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -119,6 +120,7 @@ function hasWidgetPermission(widgetId: string, effectivePermissions?: string[], 
 function DashboardPage() {
   const queryClient = useQueryClient();
   const profile = authState.getProfile();
+  const { format, formatCompact } = useCurrency();
   const userName = profile?.fullName ? profile.fullName.split(" ")[0] : "Jane";
   const userRole = profile?.role || "";
   const effectivePermissions = profile?.effectivePermissions;
@@ -202,8 +204,8 @@ function DashboardPage() {
   };
 
   // KPI mapping
-  const revenueStr = dashboard?.revenue ? `$${Number(dashboard.revenue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "$0";
-  const invValueStr = dashboard?.inventoryValue ? `$${(Number(dashboard.inventoryValue) / 1000000).toFixed(2)}M` : "$0.00M";
+  const revenueStr = dashboard?.revenue ? format(Number(dashboard.revenue), 0) : format(0, 0);
+  const invValueStr = dashboard?.inventoryValue ? formatCompact(Number(dashboard.inventoryValue)) : formatCompact(0);
 
   const liveRecs = aiInsights?.recommendations?.map((rec: any) => {
     const textVal = typeof rec === "string" ? rec : (rec?.title || rec?.body || rec?.description || "");
@@ -542,7 +544,7 @@ function DashboardPage() {
                 )}
 
                 {/* RENDER ACTUAL COMPONENT */}
-                {renderWidgetContent(widget.id, dashboard, liveRecs, products)}
+                {renderWidgetContent(widget.id, dashboard, liveRecs, products, format, formatCompact)}
               </div>
             </div>
           );
@@ -553,7 +555,14 @@ function DashboardPage() {
 }
 
 // Sub-render method to isolate specific metrics logic
-function renderWidgetContent(id: string, dashboard: any, liveRecs: any[], products: any[]): ReactNode {
+function renderWidgetContent(
+  id: string,
+  dashboard: any,
+  liveRecs: any[],
+  products: any[],
+  format: (valueInINR: number, decimals?: number) => string,
+  formatCompact: (valueInINR: number) => string
+): ReactNode {
   switch (id) {
     case "revenue":
       return (
@@ -561,7 +570,7 @@ function renderWidgetContent(id: string, dashboard: any, liveRecs: any[], produc
           <div>
             <div className="text-xs text-muted-foreground">Revenue (MTD)</div>
             <div className="mt-2 font-display text-3xl font-semibold tracking-tight">
-              {dashboard?.revenue ? `$${Number(dashboard.revenue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "$0"}
+              {dashboard?.revenue ? format(Number(dashboard.revenue), 0) : format(0, 0)}
             </div>
           </div>
           <div className="flex items-center justify-between mt-4 pt-1">
@@ -591,7 +600,7 @@ function renderWidgetContent(id: string, dashboard: any, liveRecs: any[], produc
           <div>
             <div className="text-xs text-muted-foreground">Inventory Asset Value</div>
             <div className="mt-2 font-display text-3xl font-semibold tracking-tight">
-              {dashboard?.inventoryValue ? `$${(Number(dashboard.inventoryValue) / 1000000).toFixed(2)}M` : "$0.00M"}
+              {dashboard?.inventoryValue ? formatCompact(Number(dashboard.inventoryValue)) : formatCompact(0)}
             </div>
           </div>
           <div className="flex items-center justify-between mt-4 pt-1">

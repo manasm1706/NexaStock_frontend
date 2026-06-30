@@ -1,4 +1,5 @@
 import { AlertTriangle, Package, TrendingDown, TrendingUp } from "lucide-react";
+import { useCurrency } from "@/hooks/useCurrency";
 
 const statusStyle: Record<string, string> = {
   healthy: "bg-success/15 text-success border-success/30",
@@ -37,6 +38,7 @@ export function InventoryTable({
   onAdjustStock,
   onEditProduct,
 }: InventoryTableProps) {
+  const { format } = useCurrency();
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -91,7 +93,7 @@ export function InventoryTable({
                   )}
                 </td>
                 <td className="px-5 py-3 text-right text-muted-foreground">{p.min}</td>
-                <td className="px-5 py-3 text-right">${p.price}</td>
+                <td className="px-5 py-3 text-right">{format(p.price, 0)}</td>
                 <td className={`px-5 py-3 text-right ${p.trend >= 0 ? "text-success" : "text-destructive"}`}>
                   <span className="inline-flex items-center gap-1">
                     {p.trend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}

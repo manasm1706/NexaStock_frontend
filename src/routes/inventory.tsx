@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLocation } from "@/contexts/LocationContext";
+import { useCurrency } from "@/hooks/useCurrency";
 
 import { hasModulePermission } from "@/components/app/DashboardLayout";
 
@@ -53,6 +54,7 @@ export const Route = createFileRoute("/inventory")({
 function InventoryPage() {
   const queryClient = useQueryClient();
   const { selectedLocationId } = useLocation();
+  const { formatCompact } = useCurrency();
   const [selectedCat, setSelectedCat] = useState("All");
   const [open, setOpen] = useState(false);
 
@@ -927,7 +929,7 @@ function InventoryPage() {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           { l: "Total SKUs", v: totalSKUs.toLocaleString(), d: "Active in directory" },
-          { l: "Inventory value", v: `$${(totalValue / 1000).toFixed(1)}k`, d: "Cost-basis value" },
+          { l: "Inventory value", v: formatCompact(totalValue), d: "Cost-basis value" },
           { l: "Low stock", v: lowStockCount.toString(), d: "Threshold breached", warn: true },
           { l: "Out of stock", v: outOfStockCount.toString(), d: "Action required", danger: true },
         ].map((k, i) => (

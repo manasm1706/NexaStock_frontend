@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useCurrency } from "@/hooks/useCurrency";
 
 import { hasModulePermission } from "@/components/app/DashboardLayout";
 
@@ -58,6 +59,7 @@ type Line = {
 
 function POSPage() {
   const queryClient = useQueryClient();
+  const { format, symbol } = useCurrency();
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<string>("All");
   const [cart, setCart] = useState<Line[]>([]);
@@ -536,7 +538,7 @@ function POSPage() {
                   <div className="mt-1.5 font-medium leading-snug pr-8 text-foreground">{p.name}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{p.sku}</div>
                   <div className="mt-2 text-[10px] text-muted-foreground">Stock: <span className={stock <= 5 ? "text-warning font-semibold" : "text-foreground font-semibold"}>{stock}</span></div>
-                  <div className="mt-2 font-display text-xl text-foreground">${p.price}</div>
+                  <div className="mt-2 font-display text-xl text-foreground">{format(p.price, 2)}</div>
                 </motion.button>
               );
             })}
@@ -583,7 +585,7 @@ function POSPage() {
                   <div className="flex items-center justify-between w-full">
                     <div className="flex-1 min-w-0 pr-2">
                       <div className="text-sm font-medium truncate">{l.name}</div>
-                      <div className="text-xs text-muted-foreground">${l.price} × {l.qty} (Tax {l.taxRate}%)</div>
+                      <div className="text-xs text-muted-foreground">{format(l.price)} × {l.qty} (Tax {l.taxRate}%)</div>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => dec(l.sku)} className="w-7 h-7 rounded-lg border border-white/10 hover:bg-white/5 flex items-center justify-center cursor-pointer">
@@ -594,7 +596,7 @@ function POSPage() {
                         <Plus className="w-3 h-3" />
                       </button>
                     </div>
-                    <div className="w-16 text-right text-sm font-medium">${(l.price * l.qty).toFixed(2)}</div>
+                    <div className="w-16 text-right text-sm font-medium">{format(l.price * l.qty)}</div>
                     <button onClick={() => remove(l.sku)} className="text-muted-foreground hover:text-destructive cursor-pointer ml-2">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -609,7 +611,7 @@ function POSPage() {
                         onChange={(e) => updateLineDiscount(l.sku, "discountType", e.target.value as any)}
                         className="bg-transparent border border-white/10 rounded px-1 py-0.5 text-foreground outline-none text-[9px]"
                       >
-                        <option value="fixed" className="bg-background">$</option>
+                        <option value="fixed" className="bg-background">{symbol}</option>
                         <option value="percentage" className="bg-background">%</option>
                       </select>
                       <input
@@ -622,7 +624,7 @@ function POSPage() {
                       />
                     </div>
                     {getLineDiscount(l) > 0 && (
-                      <div className="text-primary font-medium">Saved -${getLineDiscount(l).toFixed(2)}</div>
+                      <div className="text-primary font-medium">Saved -{format(getLineDiscount(l))}</div>
                     )}
                   </div>
                 </motion.div>
@@ -747,13 +749,13 @@ function POSPage() {
           <div className="px-5 py-3 border-t border-white/5 space-y-1.5 text-sm">
             <div className="flex justify-between text-muted-foreground">
               <span>Subtotal</span>
-              <span className="text-foreground">${subtotal.toFixed(2)}</span>
+              <span className="text-foreground">{format(subtotal)}</span>
             </div>
             
             {lineDiscountsTotal > 0 && (
               <div className="flex justify-between text-muted-foreground text-xs">
                 <span>Line Discounts</span>
-                <span className="text-primary font-medium">-${lineDiscountsTotal.toFixed(2)}</span>
+                <span className="text-primary font-medium">-{format(lineDiscountsTotal)}</span>
               </div>
             )}
 
@@ -765,7 +767,7 @@ function POSPage() {
                   onChange={(e) => setOrderDiscountType(e.target.value as any)}
                   className="bg-transparent border border-white/10 rounded px-1 py-0.5 text-foreground outline-none text-[10px]"
                 >
-                  <option value="fixed" className="bg-background">$ Off</option>
+                  <option value="fixed" className="bg-background">{symbol} Off</option>
                   <option value="percentage" className="bg-background">% Off</option>
                 </select>
                 <input
@@ -782,18 +784,18 @@ function POSPage() {
             {totalDiscount > 0 && (
               <div className="flex justify-between text-primary font-medium text-xs pt-0.5 animate-in">
                 <span>Total Savings</span>
-                <span>-${totalDiscount.toFixed(2)}</span>
+                <span>-{format(totalDiscount)}</span>
               </div>
             )}
 
             <div className="flex justify-between text-muted-foreground">
               <span>Estimated Taxes</span>
-              <span className="text-foreground">${tax.toFixed(2)}</span>
+              <span className="text-foreground">{format(tax)}</span>
             </div>
 
             <div className="flex justify-between font-display text-xl pt-1.5 border-t border-white/5 text-foreground">
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>{format(total)}</span>
             </div>
           </div>
 
@@ -911,12 +913,12 @@ function POSPage() {
                   <div key={idx} className="space-y-0.5 text-[11px]">
                     <div className="flex justify-between font-medium">
                       <span>{line.name}</span>
-                      <span>${line.total.toFixed(2)}</span>
+                      <span>{format(line.total)}</span>
                     </div>
                     <div className="flex justify-between text-[10px] text-muted-foreground pl-2">
-                      <span>${line.price.toFixed(2)} × {line.qty}</span>
+                      <span>{format(line.price)} × {line.qty}</span>
                       {line.discount > 0 && (
-                        <span>Disc: -${line.discount.toFixed(2)}</span>
+                        <span>Disc: -{format(line.discount)}</span>
                       )}
                     </div>
                   </div>
@@ -928,21 +930,21 @@ function POSPage() {
             <div className="border-t border-dashed border-white/10 pt-2.5 space-y-1.5">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>${lastInvoice?.subtotal?.toFixed(2) || "0.00"}</span>
+                <span>{lastInvoice?.subtotal ? format(lastInvoice.subtotal) : format(0)}</span>
               </div>
               {lastInvoice?.discountTotal > 0 && (
                 <div className="flex justify-between text-primary">
                   <span>Total Discounts</span>
-                  <span>-${lastInvoice?.discountTotal?.toFixed(2)}</span>
+                  <span>-{format(lastInvoice.discountTotal)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Total Tax</span>
-                <span>${lastInvoice?.taxTotal?.toFixed(2) || "0.00"}</span>
+                <span>{lastInvoice?.taxTotal ? format(lastInvoice.taxTotal) : format(0)}</span>
               </div>
               <div className="flex justify-between font-bold text-sm border-t border-dashed border-white/10 pt-2">
                 <span>GRAND TOTAL</span>
-                <span>${lastInvoice?.grandTotal?.toFixed(2) || "0.00"}</span>
+                <span>{lastInvoice?.grandTotal ? format(lastInvoice.grandTotal) : format(0)}</span>
               </div>
             </div>
 

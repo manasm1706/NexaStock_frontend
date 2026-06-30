@@ -459,11 +459,15 @@ export const api = {
   },
 
   // Analytics
-  async getAnalyticsDashboard(startDate?: string, endDate?: string): Promise<any> {
+  async getAnalyticsDashboard(startDate?: string, endDate?: string, extraParams?: string): Promise<any> {
     const params = new URLSearchParams();
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
-    const query = params.toString() ? `?${params.toString()}` : "";
+    let query = params.toString() ? `?${params.toString()}` : "";
+    if (extraParams) {
+      const cleanParams = extraParams.startsWith("?") ? extraParams.substring(1) : extraParams;
+      query = query ? `${query}&${cleanParams}` : `?${cleanParams}`;
+    }
     return apiRequest<any>("GET", `/analytics/dashboard${query}`);
   },
 

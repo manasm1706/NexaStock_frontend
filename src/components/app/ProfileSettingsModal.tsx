@@ -12,6 +12,7 @@ import {
 import { api, authState } from "@/lib/api/client";
 import { GlassCard } from "@/components/ui/card/GlassCard";
 import { Button } from "@/components/ui/button";
+import { useCurrency } from "@/hooks/useCurrency";
 
 interface ProfileSettingsModalProps {
   onClose: () => void;
@@ -20,6 +21,7 @@ interface ProfileSettingsModalProps {
 export function ProfileSettingsModal({ onClose }: ProfileSettingsModalProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { format } = useCurrency();
   const localProfile = authState.getProfile();
 
   // 1. Fetch real-time user profile data
@@ -278,7 +280,7 @@ export function ProfileSettingsModal({ onClose }: ProfileSettingsModalProps) {
               </div>
               <div className="rounded-xl border border-white/5 bg-white/2 p-3 text-center">
                 <div className="text-muted-foreground">Register Balance</div>
-                <div className="text-xl font-semibold text-foreground mt-1">$1,450.00</div>
+                <div className="text-xl font-semibold text-foreground mt-1">{format(1450)}</div>
               </div>
             </div>
           </div>
