@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocation } from "@/contexts/LocationContext";
 
 import { hasModulePermission } from "@/components/app/DashboardLayout";
 
@@ -51,6 +52,7 @@ export const Route = createFileRoute("/inventory")({
 
 function InventoryPage() {
   const queryClient = useQueryClient();
+  const { selectedLocationId } = useLocation();
   const [selectedCat, setSelectedCat] = useState("All");
   const [open, setOpen] = useState(false);
 
@@ -66,6 +68,121 @@ function InventoryPage() {
   const [industry, setIndustry] = useState("pharmacy");
   const [brand, setBrand] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Unified initial stock & location
+  const [initialStock, setInitialStock] = useState("0");
+  const [targetLocation, setTargetLocation] = useState("");
+
+  // Adjust stock states
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustProduct, setAdjustProduct] = useState<any | null>(null);
+  const [adjustLocationId, setAdjustLocationId] = useState("");
+  const [adjustQty, setAdjustQty] = useState("1");
+  const [adjustType, setAdjustType] = useState<"add" | "reduce">("reduce");
+  const [adjustReason, setAdjustReason] = useState("Damaged Goods");
+  const [isAdjusting, setIsAdjusting] = useState(false);
+
+  // Edit product states
+  const [editOpen, setEditOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<any | null>(null);
+  const [editSku, setEditSku] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editUnitOfMeasure, setEditUnitOfMeasure] = useState("");
+  const [editPurchasePrice, setEditPurchasePrice] = useState("");
+  const [editSellingPrice, setEditSellingPrice] = useState("");
+  const [editReorderLevel, setEditReorderLevel] = useState("");
+  const [editReorderQuantity, setEditReorderQuantity] = useState("");
+  const [editIndustry, setEditIndustry] = useState("");
+  const [editBrand, setEditBrand] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+
+  const triggerAdjustStock = (prod: any) => {
+    setAdjustProduct(prod);
+    setAdjustLocationId(selectedLocationId || locationsData[0]?.id || "");
+    setAdjustQty("1");
+    setAdjustType("reduce");
+    setAdjustReason("Damaged Goods");
+    setAdjustOpen(true);
+  };
+
+  const handleAdjustSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adjustProduct || !adjustLocationId || !adjustQty || !adjustReason) {
+      toast.error("Please fill in all adjustment fields");
+      return;
+    }
+
+    setIsAdjusting(true);
+    try {
+      const qtyNumber = Number(adjustQty);
+      const quantityDelta = adjustType === "add" ? qtyNumber : -qtyNumber;
+
+      await api.adjustInventory({
+        productId: adjustProduct.id,
+        locationId: adjustLocationId,
+        quantity: quantityDelta,
+        reason: adjustReason
+      });
+
+      toast.success("Stock adjusted successfully!");
+      setAdjustOpen(false);
+      
+      queryClient.invalidateQueries({ queryKey: ["inventory-balances"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to adjust stock");
+    } finally {
+      setIsAdjusting(false);
+    }
+  };
+
+  const triggerEditProduct = (prod: any) => {
+    setEditProduct(prod);
+    setEditSku(prod.sku);
+    setEditName(prod.name);
+    setEditCategory(prod.cat || "Pharmacy");
+    setEditUnitOfMeasure(prod.unitOfMeasure || "box");
+    setEditPurchasePrice(String(prod.purchasePrice || 35));
+    setEditSellingPrice(String(prod.price || 48));
+    setEditReorderLevel(String(prod.min || 40));
+    setEditReorderQuantity(String(prod.reorderQuantity || 200));
+    setEditIndustry(prod.industry || "pharmacy");
+    setEditBrand(prod.brand || "");
+    setEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editProduct || !editSku || !editName || !editCategory || !editUnitOfMeasure || !editPurchasePrice || !editSellingPrice || !editReorderLevel || !editReorderQuantity) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setIsEditing(true);
+    try {
+      await api.updateProduct(editProduct.id, {
+        sku: editSku,
+        name: editName,
+        category: editCategory,
+        unitOfMeasure: editUnitOfMeasure,
+        purchasePrice: Number(editPurchasePrice),
+        sellingPrice: Number(editSellingPrice),
+        reorderLevel: Number(editReorderLevel),
+        reorderQuantity: Number(editReorderQuantity),
+        industry: editIndustry,
+        brand: editBrand || null
+      });
+
+      toast.success("Product details updated successfully!");
+      setEditOpen(false);
+      
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update product details");
+    } finally {
+      setIsEditing(false);
+    }
+  };
 
   // Export states
   const [exportOpen, setExportOpen] = useState(false);
@@ -346,7 +463,9 @@ function InventoryPage() {
         reorderQuantity: Number(reorderQuantity),
         industry,
         brand: brand || undefined,
-        taxRate: 12
+        taxRate: 12,
+        quantity: initialStock ? Number(initialStock) : undefined,
+        locationId: targetLocation || selectedLocationId || undefined
       });
 
       toast.success("Product created successfully!");
@@ -355,6 +474,8 @@ function InventoryPage() {
       setSku("");
       setName("");
       setBrand("");
+      setInitialStock("0");
+      setTargetLocation("");
       
       // Invalidate queries to reload data
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -379,7 +500,7 @@ function InventoryPage() {
   // Map database products to the table requirements
   const mappedProducts = productsData.map((prod: any) => {
     const stock = balancesData
-      .filter((bal: any) => bal.productId === prod.id)
+      .filter((bal: any) => bal.productId === prod.id && (!selectedLocationId || bal.locationId === selectedLocationId))
       .reduce((sum: number, bal: any) => sum + bal.quantity, 0);
 
     let status = "healthy";
@@ -392,6 +513,7 @@ function InventoryPage() {
     }
 
     return {
+      id: prod.id,
       sku: prod.sku,
       name: prod.name,
       cat: prod.category,
@@ -399,7 +521,12 @@ function InventoryPage() {
       min: prod.reorderLevel,
       price: prod.sellingPrice,
       status,
-      trend: prod.metadata?.trend !== undefined ? Number(prod.metadata.trend) : 10
+      trend: prod.metadata?.trend !== undefined ? Number(prod.metadata.trend) : 10,
+      purchasePrice: prod.purchasePrice,
+      unitOfMeasure: prod.unitOfMeasure,
+      reorderQuantity: prod.reorderQuantity,
+      brand: prod.brand,
+      industry: prod.industry
     };
   });
 
@@ -412,7 +539,7 @@ function InventoryPage() {
 
   productsData.forEach((prod: any) => {
     const stock = balancesData
-      .filter((bal: any) => bal.productId === prod.id)
+      .filter((bal: any) => bal.productId === prod.id && (!selectedLocationId || bal.locationId === selectedLocationId))
       .reduce((sum: number, bal: any) => sum + bal.quantity, 0);
 
     totalValue += (prod.purchasePrice || 100) * stock;
@@ -726,6 +853,30 @@ function InventoryPage() {
                   </div>
                 </div>
 
+                {/* Unified Manual Stock Creation Fields */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="initialStock" className="text-xs">Initial Stock / Quantity</Label>
+                    <Input id="initialStock" type="number" min="0" value={initialStock} onChange={(e) => setInitialStock(e.target.value)} placeholder="100" className="h-9 bg-white/3 border-white/10 text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="targetLocation" className="text-xs">Target Location/Store</Label>
+                    <select
+                      id="targetLocation"
+                      value={targetLocation || selectedLocationId || ""}
+                      onChange={(e) => setTargetLocation(e.target.value)}
+                      className="w-full h-9 rounded-md border border-white/10 bg-white/5 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                    >
+                      <option value="" className="bg-background">None (Directory Only)</option>
+                      {locationsData.map((loc: any) => (
+                        <option key={loc.id} value={loc.id} className="bg-background">
+                          {loc.name} ({loc.type || loc.locationType || "Location"})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="purchase" className="text-xs">Purchase Price ($)</Label>
@@ -811,8 +962,207 @@ function InventoryPage() {
             ))}
           </div>
         </div>
-        <InventoryTable products={filteredProducts} />
+        <InventoryTable 
+          products={filteredProducts} 
+          balancesData={balancesData}
+          locationsData={locationsData}
+          onAdjustStock={triggerAdjustStock}
+          onEditProduct={triggerEditProduct}
+        />
       </GlassCard>
+
+      {/* Adjust Stock Dialog */}
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent className="sm:max-w-[480px] glass border-white/10 bg-background/95 text-foreground max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Adjust Inventory Stock</DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs">
+              Record stock changes for damaged goods, audits, or inventory corrections.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAdjustSubmit} className="space-y-4 py-2">
+            {adjustProduct && (
+              <div className="rounded-lg bg-white/3 border border-white/10 p-3 flex justify-between items-center text-xs">
+                <div>
+                  <div className="font-semibold text-sm text-foreground">{adjustProduct.name}</div>
+                  <div className="text-muted-foreground mt-0.5">{adjustProduct.sku}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-muted-foreground">Current Stock:</div>
+                  <div className="font-mono text-sm font-bold text-primary">{adjustProduct.stock} units</div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="adjustLocation" className="text-xs">Location / Store</Label>
+                <select
+                  id="adjustLocation"
+                  value={adjustLocationId}
+                  onChange={(e) => setAdjustLocationId(e.target.value)}
+                  className="w-full h-9 rounded-md border border-white/10 bg-white/5 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  required
+                >
+                  <option value="" className="bg-background" disabled>Select Location...</option>
+                  {locationsData.map((loc: any) => (
+                    <option key={loc.id} value={loc.id} className="bg-background">
+                      {loc.name} ({loc.type || loc.locationType})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="adjustType" className="text-xs">Adjustment Type</Label>
+                <div className="grid grid-cols-2 gap-1 border border-white/10 rounded-md p-0.5 bg-white/3">
+                  <button
+                    type="button"
+                    onClick={() => setAdjustType("add")}
+                    className={`h-7 rounded text-[10px] uppercase font-bold cursor-pointer transition-all ${
+                      adjustType === "add"
+                        ? "bg-green-500/20 border border-green-500/35 text-green-400 font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Add Stock
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdjustType("reduce")}
+                    className={`h-7 rounded text-[10px] uppercase font-bold cursor-pointer transition-all ${
+                      adjustType === "reduce"
+                        ? "bg-destructive/20 border border-destructive/35 text-destructive font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Reduce Stock
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="adjustQty" className="text-xs">Quantity (Units)</Label>
+                <Input
+                  id="adjustQty"
+                  type="number"
+                  min="1"
+                  value={adjustQty}
+                  onChange={(e) => setAdjustQty(e.target.value)}
+                  placeholder="1"
+                  className="h-9 bg-white/3 border-white/10 text-sm"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="adjustReason" className="text-xs">Reason</Label>
+                <select
+                  id="adjustReason"
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  className="w-full h-9 rounded-md border border-white/10 bg-white/5 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  required
+                >
+                  <option value="Damaged Goods" className="bg-background">Damaged Goods / Write-off</option>
+                  <option value="Stock Audit Variance" className="bg-background">Stock Audit Variance</option>
+                  <option value="Manual Correction" className="bg-background">Manual Correction</option>
+                  <option value="Return to Supplier" className="bg-background">Return to Supplier</option>
+                  <option value="Inward Supply" className="bg-background">Inward Supply Correction</option>
+                </select>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-4 pt-2 border-t border-white/5">
+              <DialogClose asChild>
+                <Button type="button" variant="outline" className="h-9 text-xs">Cancel</Button>
+              </DialogClose>
+              <Button type="submit" variant="premiumGradient" className="h-9 text-xs" disabled={isAdjusting}>
+                {isAdjusting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Adjust Stock"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Product Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-[500px] glass border-white/10 bg-background/95 text-foreground max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Edit Product Details</DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs">
+              Update central directory settings for this SKU record.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="editSku" className="text-xs">SKU Code</Label>
+                <Input id="editSku" value={editSku} onChange={(e) => setEditSku(e.target.value)} placeholder="MED-PARA-500" className="h-9 bg-white/3 border-white/10 text-sm" required />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="editName" className="text-xs">Product Name</Label>
+                <Input id="editName" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Paracetamol 500mg" className="h-9 bg-white/3 border-white/10 text-sm" required />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="editCategory" className="text-xs">Category</Label>
+                <Input id="editCategory" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} placeholder="Pharmacy" className="h-9 bg-white/3 border-white/10 text-sm" required />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="editUom" className="text-xs">Unit of Measure</Label>
+                <Input id="editUom" value={editUnitOfMeasure} onChange={(e) => setEditUnitOfMeasure(e.target.value)} placeholder="box" className="h-9 bg-white/3 border-white/10 text-sm" required />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="editPurchase" className="text-xs">Purchase Price ($)</Label>
+                <Input id="editPurchase" type="number" value={editPurchasePrice} onChange={(e) => setEditPurchasePrice(e.target.value)} placeholder="35" className="h-9 bg-white/3 border-white/10 text-sm" required />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="editSelling" className="text-xs">Selling Price ($)</Label>
+                <Input id="editSelling" type="number" value={editSellingPrice} onChange={(e) => setEditSellingPrice(e.target.value)} placeholder="48" className="h-9 bg-white/3 border-white/10 text-sm" required />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="editReorderPt" className="text-xs">Reorder Threshold</Label>
+                <Input id="editReorderPt" type="number" value={editReorderLevel} onChange={(e) => setEditReorderLevel(e.target.value)} placeholder="40" className="h-9 bg-white/3 border-white/10 text-sm" required />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="editReorderQty" className="text-xs">Reorder Quantity</Label>
+                <Input id="editReorderQty" type="number" value={editReorderQuantity} onChange={(e) => setEditReorderQuantity(e.target.value)} placeholder="200" className="h-9 bg-white/3 border-white/10 text-sm" required />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="editIndustry" className="text-xs">Industry</Label>
+                <Input id="editIndustry" value={editIndustry} onChange={(e) => setEditIndustry(e.target.value)} placeholder="pharmacy" className="h-9 bg-white/3 border-white/10 text-sm" required />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="editBrand" className="text-xs">Brand (Optional)</Label>
+                <Input id="editBrand" value={editBrand} onChange={(e) => setEditBrand(e.target.value)} placeholder="GSK" className="h-9 bg-white/3 border-white/10 text-sm" />
+              </div>
+            </div>
+
+            <DialogFooter className="mt-4 pt-2 border-t border-white/5">
+              <DialogClose asChild>
+                <Button type="button" variant="outline" className="h-9 text-xs">Cancel</Button>
+              </DialogClose>
+              <Button type="submit" variant="premiumGradient" className="h-9 text-xs" disabled={isEditing}>
+                {isEditing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

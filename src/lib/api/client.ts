@@ -323,8 +323,26 @@ export const api = {
     taxRate?: number;
     industry: string;
     brand?: string;
+    quantity?: number;
+    locationId?: string;
   }): Promise<any> {
     return apiRequest<any>("POST", "/products", product);
+  },
+
+  async updateProduct(id: string, product: {
+    sku?: string;
+    name?: string;
+    category?: string;
+    unitOfMeasure?: string;
+    purchasePrice?: number;
+    sellingPrice?: number;
+    reorderLevel?: number;
+    reorderQuantity?: number;
+    taxRate?: number;
+    industry?: string;
+    brand?: string | null;
+  }): Promise<any> {
+    return apiRequest<any>("PUT", `/products/${id}`, product);
   },
 
   // Suppliers
